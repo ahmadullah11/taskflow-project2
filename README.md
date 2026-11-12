@@ -8,9 +8,16 @@ A production-ready Task Tracking and Time Logging System built with **Next.js 16
 
 ### 1. Task Assignment & Management
 - Tasks feature an `assignee` field representing a designated team member.
-- Managers and admins can assign or reassign tasks anytime.
-- Real-time status management: `Todo`, `In Progress`, `Completed`.
+- Administrators can create tasks, edit every field (title, description, category, priority, status, assignee), reassign, and delete any task.
+- Members can create self-assigned tasks and move their own tasks through `Todo`, `In Progress`, and `Completed`.
 - Unique task codes (e.g. `TASK-1024`, `TASK-1025`) auto-generated.
+
+### 1b. Admin User Management (`/users`)
+- Admins can **add** team members (name, email, role, title, password).
+- Admins can **update** any member's name, email, role, title, or reset their password.
+- Admins can **delete** members. Tasks assigned to a deleted member become unassigned; their past work logs stay in the timesheet for history.
+- Safety rails: you cannot delete your own account, demote/remove the last admin, or delete a member who currently has a running timer.
+
 
 ### 2. Time Tracking & Working Sessions
 - **Assignee Authorization:** Only the assigned team member can start or stop their work session.

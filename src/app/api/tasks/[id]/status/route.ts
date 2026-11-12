@@ -39,6 +39,19 @@ export async function PATCH(
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
+    const canUpdateStatus =
+      user.role === "admin" ||
+      user.role === "manager" ||
+      task.assigneeId === user.id ||
+      task.assignee?._id === user.id ||
+      task.createdById === user.id;
+    if (!canUpdateStatus) {
+      return NextResponse.json(
+        { error: "Access denied: You cannot change the status of this task." },
+        { status: 403 }
+      );
+    }
+
     await tasksCol.updateOne(query, {
       $set: {
         status,

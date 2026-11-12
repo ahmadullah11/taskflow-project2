@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUsersCollection } from "@/lib/mongodb";
+import { getUsersCollection, isDuplicateKeyError } from "@/lib/mongodb";
 import { hashPassword, generateToken, AUTH_COOKIE_NAME } from "@/lib/auth";
+import { UserRole } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,6 +23,8 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    const validRoles: UserRole[] = ["member", "manager", "admin"];
+    const safeRole: UserRole = validRoles.includes(role) ? role : "member";
     const usersCol = await getUsersCollection();
     const existing = await usersCol.findOne({ email: cleanEmail });
 
@@ -37,7 +40,7 @@ export async function POST(req: NextRequest) {
       name: name.trim(),
       email: cleanEmail,
       password: hashedPassword,
-      role: role as any,
+      role: safeRole,
       title: title.trim(),
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name.trim())}`,
       createdAt: new Date(),
@@ -48,7 +51,7 @@ export async function POST(req: NextRequest) {
       id: result.insertedId.toString(),
       name: name.trim(),
       email: cleanEmail,
-      role: role as any,
+      role: safeRole,
       title: title.trim(),
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name.trim())}`,
     };
@@ -71,10 +74,16 @@ export async function POST(req: NextRequest) {
     });
 
     return response;
-  } catch (err: any) {
+  } catch (err) {
+    if (isDuplicateKeyError(err)) {
+      return NextResponse.json(
+        { error: "A user with this email already exists." },
+        { status: 409 }
+      );
+    }
     console.error("Signup error:", err);
     return NextResponse.json(
-      { error: err.message || "Failed to create account" },
+      { error: err instanceof Error ? err.message : "Failed to create account" },
       { status: 500 }
     );
   }

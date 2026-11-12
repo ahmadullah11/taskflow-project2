@@ -2,10 +2,13 @@
 
 import React, { useState, useEffect, useCallback, use } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthContext";
 import TaskDetailsTimer from "@/components/TaskDetailsTimer";
 import WorkHistoryList from "@/components/WorkHistoryList";
 import TaskAssigneeCard from "@/components/TaskAssigneeCard";
+import TaskEditModal from "@/components/TaskEditModal";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { TaskDoc, WorkSessionDoc, TaskStatus } from "@/lib/types";
 import {
   ArrowLeft,
@@ -17,6 +20,8 @@ import {
   Sparkles,
   ChevronRight,
   MoreVertical,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 export default function TaskDetailsPage({
@@ -26,22 +31,30 @@ export default function TaskDetailsPage({
 }) {
   const resolvedParams = use(params);
   const taskId = resolvedParams.id;
+  const router = useRouter();
 
   const { user: currentUser, activeSession: userActiveSession, refreshAuth } = useAuth();
   const [task, setTask] = useState<TaskDoc | null>(null);
   const [sessions, setSessions] = useState<WorkSessionDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const fetchTaskData = useCallback(async () => {
     try {
+      setError(null);
       const [taskRes, sessionsRes] = await Promise.all([
         fetch(`/api/tasks/${taskId}`, { cache: "no-store" }),
         fetch(`/api/tasks/${taskId}/sessions`, { cache: "no-store" }),
       ]);
 
       if (!taskRes.ok) {
-        if (taskRes.status === 403) {
+        if (taskRes.status === 401) {
+          setError("Please log in to view this task.");
+        } else if (taskRes.status === 403) {
           setError("Access Restricted: This task is assigned to another team member. You can only view tasks assigned to or created by you.");
         } else if (taskRes.status === 404) {
           setError("Task not found.");
@@ -64,7 +77,9 @@ export default function TaskDetailsPage({
     } finally {
       setLoading(false);
     }
-  }, [taskId]);
+    // Refetch when the signed-in user changes (1-click profile switcher).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId, currentUser?.id]);
 
   useEffect(() => {
     fetchTaskData();
@@ -88,6 +103,27 @@ export default function TaskDetailsPage({
       }
     } catch (err) {
       console.error("Failed to update status:", err);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!task) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/tasks/${task._id || task.taskCode}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete task");
+      }
+      router.push("/tasks");
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to delete task"
+      );
+      setDeleteLoading(false);
     }
   };
 
@@ -184,6 +220,29 @@ export default function TaskDetailsPage({
 
         {/* Quick Status Selector */}
         <div className="flex items-center space-x-2">
+          {currentUser?.role === "admin" && (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsEditOpen(true)}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 border border-slate-200 bg-white hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-colors"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteError(null);
+                  setDeleteOpen(true);
+                }}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 border border-slate-200 bg-white hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
+            </>
+          )}
           <span className="text-xs text-slate-400 font-medium hidden sm:inline">
             Status:
           </span>
@@ -293,6 +352,38 @@ export default function TaskDetailsPage({
       <WorkHistoryList
         sessions={sessions}
         totalDurationSeconds={task.totalDurationSeconds || 0}
+      />
+
+      {currentUser?.role === "admin" && isEditOpen && (
+        <TaskEditModal
+          task={task}
+          onClose={() => setIsEditOpen(false)}
+          onSaved={handleSessionUpdated}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={deleteOpen}
+        title="Delete task?"
+        message={
+          <>
+            <strong>
+              {task.taskCode} · {task.title}
+            </strong>{" "}
+            will be permanently deleted. Logged work sessions will no longer be
+            reachable from this task.
+          </>
+        }
+        confirmLabel="Delete Task"
+        loading={deleteLoading}
+        error={deleteError}
+        onCancel={() => {
+          if (!deleteLoading) {
+            setDeleteOpen(false);
+            setDeleteError(null);
+          }
+        }}
+        onConfirm={handleDeleteTask}
       />
     </div>
   );

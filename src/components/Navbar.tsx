@@ -4,12 +4,12 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthContext";
-import { formatDigitalTimer } from "@/lib/date-utils";
+import { formatDigitalTimer, getInitials } from "@/lib/date-utils";
 import {
   Clock,
   CheckSquare,
   BarChart2,
-  User,
+  Users,
   LogOut,
   ChevronDown,
   Sparkles,
@@ -90,6 +90,19 @@ export default function Navbar() {
                 <BarChart2 className="w-4 h-4 text-slate-500" />
                 <span>Work Logs</span>
               </Link>
+              {user?.role === "admin" && (
+                <Link
+                  href="/users"
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1.5 ${
+                    pathname.startsWith("/users")
+                      ? "bg-slate-100 text-slate-900 font-semibold"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+                >
+                  <Users className="w-4 h-4 text-slate-500" />
+                  <span>Team</span>
+                </Link>
+              )}
             </nav>
           </div>
 
@@ -124,7 +137,7 @@ export default function Navbar() {
                   className="flex items-center space-x-2.5 p-1.5 rounded-xl hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200"
                 >
                   <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center border border-indigo-200">
-                    {user.name.slice(0, 2).toUpperCase()}
+                    {getInitials(user.name)}
                   </div>
                   <div className="text-left hidden lg:block">
                     <p className="text-xs font-semibold text-slate-900 leading-tight">

@@ -26,6 +26,15 @@ export default function StopSessionModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const handleClose = () => {
+    // Reset transient state so a previous submission can never leak into the
+    // next session (e.g. leaving "Mark task as Completed" checked).
+    setError(null);
+    setSummary("");
+    setMarkCompleted(false);
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,9 +49,11 @@ export default function StopSessionModal({
     try {
       await onSubmit({ summary: summary.trim(), markCompleted });
       setSummary("");
+      setMarkCompleted(false);
+      setError(null);
       onClose();
-    } catch (err: any) {
-      setError(err.message || "Failed to submit progress report.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to submit progress report.");
     } finally {
       setLoading(false);
     }
@@ -67,7 +78,7 @@ export default function StopSessionModal({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             disabled={loading}
             className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           >
@@ -155,7 +166,7 @@ export default function StopSessionModal({
           <div className="pt-2 flex items-center justify-end space-x-3">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={loading}
               className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
             >

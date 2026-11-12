@@ -74,3 +74,12 @@ export async function getWorkSessionsCollection(): Promise<Collection<WorkSessio
 }
 
 export default clientPromise;
+
+/** True when MongoDB rejects a write because of a unique index (E11000). */
+export function isDuplicateKeyError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { code?: number }).code === 11000
+  );
+}

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTasksCollection, getUsersCollection } from "@/lib/mongodb";
+import { getTasksCollection, getUsersCollection, isDuplicateKeyError } from "@/lib/mongodb";
 import { getCurrentUser } from "@/lib/auth";
-import { ObjectId } from "mongodb";
-import { TaskPriority, TaskStatus } from "@/lib/types";
+import { ObjectId, Filter } from "mongodb";
+import { TaskDoc, TaskPriority, TaskStatus } from "@/lib/types";
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,7 +17,7 @@ export async function GET(req: NextRequest) {
     const assigneeId = searchParams.get("assigneeId");
     const search = searchParams.get("search");
 
-    const andConditions: any[] = [];
+    const andConditions: Filter<TaskDoc>[] = [];
 
     // Role-based visibility check:
     // If non-admin (e.g. member like Ahmad Ullah), hide all other users' tasks
@@ -25,6 +29,11 @@ export async function GET(req: NextRequest) {
             { assigneeId: user.id },
             { "assignee._id": user.id },
             { createdById: user.id },
+            // Unassigned tasks are visible to everyone so any member can pick
+            // them up via "Start Working" (which auto-assigns the task).
+            { assigneeId: null },
+            { assigneeId: { $exists: false } },
+            { assigneeId: "" },
           ],
         });
       } else {
@@ -50,15 +59,15 @@ export async function GET(req: NextRequest) {
     }
 
     if (status && status !== "all") {
-      andConditions.push({ status });
+      andConditions.push({ status: status as TaskStatus });
     }
 
     if (priority && priority !== "all") {
-      andConditions.push({ priority });
+      andConditions.push({ priority: priority as TaskPriority });
     }
 
     if (search && search.trim()) {
-      const searchRegex = { $regex: search.trim(), $options: "i" };
+      const searchRegex = { $regex: escapeRegex(search.trim()), $options: "i" };
       andConditions.push({
         $or: [
           { title: searchRegex },
@@ -80,7 +89,7 @@ export async function GET(req: NextRequest) {
     }));
 
     return NextResponse.json({ tasks: formatted });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Fetch tasks error:", err);
     return NextResponse.json(
       { error: "Failed to fetch tasks" },
@@ -113,20 +122,33 @@ export async function POST(req: NextRequest) {
     const usersCol = await getUsersCollection();
 
     // Determine the next task code (TASK-1001, TASK-1002, etc.)
-    const highestTask = await tasksCol
-      .find({ taskCode: { $regex: /^TASK-\d+$/ } })
-      .sort({ taskCode: -1 })
-      .limit(1)
+    // Sort on the numeric suffix instead of the raw string so codes remain
+    // correct once the counter passes 9999 (where "9999" > "10000" as text).
+    const [highestTask] = await tasksCol
+      .aggregate([
+        { $match: { taskCode: { $regex: "^TASK-\\d+$" } } },
+        {
+          $addFields: {
+            taskNumber: {
+              $toInt: {
+                $substrCP: [
+                  "$taskCode",
+                  5,
+                  { $subtract: [{ $strLenCP: "$taskCode" }, 5] },
+                ],
+              },
+            },
+          },
+        },
+        { $sort: { taskNumber: -1 } },
+        { $limit: 1 },
+      ])
       .toArray();
 
     let nextNumber = 1001;
-    if (highestTask.length > 0 && highestTask[0].taskCode) {
-      const match = highestTask[0].taskCode.match(/TASK-(\d+)/);
-      if (match && match[1]) {
-        nextNumber = Math.max(nextNumber, parseInt(match[1], 10) + 1);
-      }
+    if (highestTask?.taskNumber) {
+      nextNumber = Math.max(nextNumber, highestTask.taskNumber + 1);
     }
-    const taskCode = `TASK-${nextNumber}`;
 
     // Role-based assignment:
     // Only Admin can assign tasks to all users.
@@ -158,8 +180,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const newTask = {
-      taskCode,
+    const newTask: Omit<TaskDoc, "taskCode"> = {
       title: title.trim(),
       description: description.trim(),
       category: category.trim(),
@@ -179,19 +200,44 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date(),
     };
 
-    const result = await tasksCol.insertOne(newTask as any);
+    // Insert with a retry loop so two simultaneous requests can't produce a
+    // duplicate taskCode (the unique index rejects the loser with code 11000).
+    let taskCode = `TASK-${nextNumber}`;
+    let insertedId: string | ObjectId | null = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const result = await tasksCol.insertOne({ ...newTask, taskCode });
+        insertedId = result.insertedId;
+        break;
+      } catch (err) {
+        if (isDuplicateKeyError(err)) {
+          nextNumber += 1;
+          taskCode = `TASK-${nextNumber}`;
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    if (!insertedId) {
+      return NextResponse.json(
+        { error: "Could not allocate a task code. Please try again." },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       message: "Task created successfully",
       task: {
         ...newTask,
-        _id: result.insertedId.toString(),
+        taskCode,
+        _id: insertedId.toString(),
       },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Create task error:", err);
     return NextResponse.json(
-      { error: err.message || "Failed to create task" },
+      { error: err instanceof Error ? err.message : "Failed to create task" },
       { status: 500 }
     );
   }

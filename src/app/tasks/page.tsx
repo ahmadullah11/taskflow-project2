@@ -6,6 +6,8 @@ import { useAuth } from "@/components/AuthContext";
 import { TaskDoc, TaskStatus, UserDoc } from "@/lib/types";
 import { formatDurationSeconds, getInitials } from "@/lib/date-utils";
 import CreateTaskModal from "@/components/CreateTaskModal";
+import TaskEditModal from "@/components/TaskEditModal";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import {
   Plus,
   Search,
@@ -21,6 +23,8 @@ import {
   Sparkles,
   ShieldCheck,
   Users,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 export default function TasksPage() {
@@ -31,6 +35,10 @@ export default function TasksPage() {
   const [users, setUsers] = useState<UserDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<TaskDoc | null>(null);
+  const [deletingTask, setDeletingTask] = useState<TaskDoc | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -75,6 +83,30 @@ export default function TasksPage() {
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  const handleDeleteTask = async () => {
+    if (!deletingTask) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(
+        `/api/tasks/${deletingTask._id || deletingTask.taskCode}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete task");
+      }
+      setDeletingTask(null);
+      await fetchTasks();
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to delete task"
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   // Summary Metrics
   const totalTasks = tasks.length;
@@ -148,7 +180,7 @@ export default function TasksPage() {
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             {isAdmin
               ? "Oversee all team tasks, monitor working sessions, and assign tasks to any team member."
-              : `Showing your assigned tasks. Other team members' tasks are hidden from your view.`}
+              : `Showing your tasks plus open, unassigned tasks you can pick up. Other members' tasks are hidden.`}
           </p>
         </div>
 
@@ -283,7 +315,7 @@ export default function TasksPage() {
             {!isAdmin && (
               <span className="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 text-slate-700 border border-slate-200 flex items-center space-x-1.5">
                 <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
-                <span>My Tasks Only</span>
+                <span>My Tasks + Open</span>
               </span>
             )}
           </div>
@@ -336,77 +368,105 @@ export default function TasksPage() {
             const hasActiveSession = Boolean(task.activeSession);
 
             return (
-              <Link
+              <div
                 key={task._id?.toString() || task.taskCode}
-                href={`/tasks/${task._id || task.taskCode}`}
-                className="group bg-white rounded-3xl border border-slate-200/80 p-5 shadow-xs hover:shadow-md hover:border-indigo-200 transition-all flex flex-col justify-between"
+                className="group bg-white rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-indigo-200 transition-all flex flex-col"
               >
-                <div>
-                  {/* Top Bar: Code, Status, Priority */}
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-mono text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
-                      {task.taskCode}
-                    </span>
-                    <div className="flex items-center space-x-1.5">
-                      {getStatusBadge(task.status)}
-                    </div>
-                  </div>
-
-                  {/* Title */}
-                  <h3 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-2 mb-1.5">
-                    {task.title}
-                  </h3>
-
-                  {/* Category */}
-                  <div className="flex items-center space-x-1 text-[11px] text-slate-400 font-medium mb-4">
-                    <Layers className="w-3 h-3" />
-                    <span>{task.category || "General"}</span>
-                  </div>
-
-                  {/* Active Timer Pill if running right now */}
-                  {hasActiveSession && (
-                    <div className="mb-4 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold flex items-center justify-between">
-                      <span className="flex items-center space-x-1.5">
-                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                        <span>Active Session</span>
+                <Link
+                  href={`/tasks/${task._id || task.taskCode}`}
+                  className="p-5 flex-1 flex flex-col justify-between"
+                >
+                  <div>
+                    {/* Top Bar: Code, Status, Priority */}
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-mono text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                        {task.taskCode}
                       </span>
-                      <span className="text-[11px] text-amber-700 font-normal">
-                        by {task.activeSession?.userName}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Footer: Assignee & Logged Time */}
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                  {/* Assignee */}
-                  {task.assignee ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center border border-indigo-200">
-                        {getInitials(task.assignee.name)}
-                      </div>
-                      <div className="text-left">
-                        <p className="text-xs font-semibold text-slate-800 leading-tight">
-                          {task.assignee.name}
-                        </p>
-                        <p className="text-[10px] text-slate-400 capitalize">
-                          {task.assignee.title || task.assignee.role}
-                        </p>
+                      <div className="flex items-center space-x-1.5">
+                        {getStatusBadge(task.status)}
                       </div>
                     </div>
-                  ) : (
-                    <span className="text-xs text-slate-400 italic">Unassigned</span>
-                  )}
 
-                  {/* Total Logged Hours */}
-                  <div className="text-right">
-                    <div className="inline-flex items-center space-x-1 text-xs font-mono font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200/60">
-                      <Clock className="w-3 h-3 text-slate-400" />
-                      <span>{formatDurationSeconds(task.totalDurationSeconds || 0)}</span>
+                    {/* Title */}
+                    <h3 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-2 mb-1.5">
+                      {task.title}
+                    </h3>
+
+                    {/* Category */}
+                    <div className="flex items-center space-x-1 text-[11px] text-slate-400 font-medium mb-4">
+                      <Layers className="w-3 h-3" />
+                      <span>{task.category || "General"}</span>
+                    </div>
+
+                    {/* Active Timer Pill if running right now */}
+                    {hasActiveSession && (
+                      <div className="mb-4 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold flex items-center justify-between">
+                        <span className="flex items-center space-x-1.5">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                          <span>Active Session</span>
+                        </span>
+                        <span className="text-[11px] text-amber-700 font-normal">
+                          by {task.activeSession?.userName}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer: Assignee & Logged Time */}
+                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                    {/* Assignee */}
+                    {task.assignee ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center border border-indigo-200">
+                          {getInitials(task.assignee.name)}
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-semibold text-slate-800 leading-tight">
+                            {task.assignee.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400 capitalize">
+                            {task.assignee.title || task.assignee.role}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">Unassigned</span>
+                    )}
+
+                    {/* Total Logged Hours */}
+                    <div className="text-right">
+                      <div className="inline-flex items-center space-x-1 text-xs font-mono font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200/60">
+                        <Clock className="w-3 h-3 text-slate-400" />
+                        <span>{formatDurationSeconds(task.totalDurationSeconds || 0)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+
+                {isAdmin && (
+                  <div className="flex items-center justify-end space-x-2 border-t border-slate-100 bg-slate-50/60 px-5 py-2.5 rounded-b-3xl">
+                    <button
+                      type="button"
+                      onClick={() => setEditingTask(task)}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 border border-slate-200 bg-white hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-colors"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeletingTask(task);
+                      }}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 border border-slate-200 bg-white hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
@@ -417,6 +477,38 @@ export default function TasksPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onTaskCreated={fetchTasks}
+      />
+
+      {isAdmin && editingTask && (
+        <TaskEditModal
+          task={editingTask}
+          onClose={() => setEditingTask(null)}
+          onSaved={fetchTasks}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={Boolean(deletingTask)}
+        title="Delete task?"
+        message={
+          <>
+            <strong>
+              {deletingTask?.taskCode} · {deletingTask?.title}
+            </strong>{" "}
+            will be permanently deleted, along with its work history on this
+            page.
+          </>
+        }
+        confirmLabel="Delete Task"
+        loading={deleteLoading}
+        error={deleteError}
+        onCancel={() => {
+          if (!deleteLoading) {
+            setDeletingTask(null);
+            setDeleteError(null);
+          }
+        }}
+        onConfirm={handleDeleteTask}
       />
     </div>
   );

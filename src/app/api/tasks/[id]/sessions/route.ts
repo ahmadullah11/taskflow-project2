@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTasksCollection, getWorkSessionsCollection } from "@/lib/mongodb";
+import { getCurrentUser } from "@/lib/auth";
 import { ObjectId } from "mongodb";
 
 export async function GET(
@@ -8,6 +9,14 @@ export async function GET(
 ) {
   try {
     const { id } = await props.params;
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json(
+        { error: "Authentication required to view work sessions." },
+        { status: 401 }
+      );
+    }
+
     const tasksCol = await getTasksCollection();
     const sessionsCol = await getWorkSessionsCollection();
 
@@ -21,6 +30,20 @@ export async function GET(
     const task = await tasksCol.findOne(taskQuery);
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    if (user.role !== "admin") {
+      const isRelated =
+        !task.assigneeId ||
+        task.assigneeId === user.id ||
+        task.assignee?._id === user.id ||
+        task.createdById === user.id;
+      if (!isRelated) {
+        return NextResponse.json(
+          { error: "Access denied: You can only view work sessions for your own tasks." },
+          { status: 403 }
+        );
+      }
     }
 
     const sessions = await sessionsCol

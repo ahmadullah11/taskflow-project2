@@ -41,8 +41,8 @@ export default function TaskDetailsTimer({
   const isAssignee = Boolean(
     currentUser && task.assigneeId && task.assigneeId === currentUser.id
   );
-  const isManagerOrAdmin = Boolean(
-    currentUser && (currentUser.role === "admin" || currentUser.role === "manager")
+  const isAdminUser = Boolean(
+    currentUser && currentUser.role === "admin"
   );
 
   // Live timer tick
@@ -178,7 +178,7 @@ export default function TaskDetailsTimer({
           {isCurrentTaskRunning ? (
             <button
               onClick={() => setIsModalOpen(true)}
-              disabled={actionLoading || (!isStartedByMe && !isManagerOrAdmin)}
+              disabled={actionLoading || (!isStartedByMe && !isAdminUser)}
               className="inline-flex items-center space-x-2.5 px-6 py-3 rounded-2xl font-bold text-sm bg-gradient-to-r from-rose-500 to-amber-600 hover:from-rose-600 hover:to-amber-700 text-white shadow-lg shadow-rose-200 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95"
             >
               <Square className="w-4 h-4 fill-white text-white group-hover:scale-110 transition-transform" />
@@ -190,7 +190,7 @@ export default function TaskDetailsTimer({
               disabled={
                 actionLoading ||
                 hasActiveSessionOnOtherTask ||
-                (!isAssignee && !isManagerOrAdmin && Boolean(task.assigneeId))
+                (!isAssignee && !isAdminUser && Boolean(task.assigneeId))
               }
               className="inline-flex items-center space-x-2.5 px-6 py-3 rounded-2xl font-bold text-sm bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg shadow-indigo-200 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95"
             >

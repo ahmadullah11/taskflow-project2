@@ -23,6 +23,9 @@ export default function TaskAssigneeCard({
   const canReassign = currentUser?.role === "admin";
 
   useEffect(() => {
+    // Only admins can reassign, and /api/users requires authentication.
+    if (!canReassign) return;
+
     async function fetchUsers() {
       try {
         const res = await fetch("/api/users");
@@ -35,7 +38,7 @@ export default function TaskAssigneeCard({
       }
     }
     fetchUsers();
-  }, []);
+  }, [canReassign]);
 
   const handleSelectAssignee = async (userId: string | null) => {
     setLoading(true);
