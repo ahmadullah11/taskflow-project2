@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthContext";
-import { TaskDoc, TaskStatus } from "@/lib/types";
+import { TaskDoc, TaskStatus, UserDoc } from "@/lib/types";
 import { formatDurationSeconds, getInitials } from "@/lib/date-utils";
 import CreateTaskModal from "@/components/CreateTaskModal";
 import {
@@ -19,19 +19,34 @@ import {
   UserCheck,
   CheckSquare,
   Sparkles,
+  ShieldCheck,
+  Users,
 } from "lucide-react";
 
 export default function TasksPage() {
   const { user: currentUser } = useAuth();
+  const isAdmin = currentUser?.role === "admin";
+
   const [tasks, setTasks] = useState<TaskDoc[]>([]);
+  const [users, setUsers] = useState<UserDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [assignedToMeOnly, setAssignedToMeOnly] = useState(false);
+
+  // Load team users for Admin assignee filter
+  useEffect(() => {
+    if (isAdmin) {
+      fetch("/api/users")
+        .then((res) => res.json())
+        .then((data) => setUsers(data.users || []))
+        .catch(console.error);
+    }
+  }, [isAdmin]);
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -39,7 +54,11 @@ export default function TasksPage() {
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (priorityFilter !== "all") params.set("priority", priorityFilter);
       if (searchQuery) params.set("search", searchQuery);
-      if (assignedToMeOnly && currentUser) params.set("assigneeId", currentUser.id);
+
+      // If admin and specific assignee selected
+      if (isAdmin && assigneeFilter !== "all") {
+        params.set("assigneeId", assigneeFilter);
+      }
 
       const res = await fetch(`/api/tasks?${params.toString()}`, { cache: "no-store" });
       if (res.ok) {
@@ -51,7 +70,7 @@ export default function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, priorityFilter, searchQuery, assignedToMeOnly, currentUser]);
+  }, [statusFilter, priorityFilter, searchQuery, assigneeFilter, isAdmin]);
 
   useEffect(() => {
     fetchTasks();
@@ -110,11 +129,26 @@ export default function TasksPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Task Tracking & Time Logging
-          </h1>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              {isAdmin ? "Task Management & Overview" : "My Assigned Tasks"}
+            </h1>
+            {isAdmin ? (
+              <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs">
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Admin View · All User Tasks</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs">
+                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Showing {currentUser?.name || "Ahmad"}&apos;s Tasks</span>
+              </span>
+            )}
+          </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Assign tasks, log working hours, and review progress reports in real-time.
+            {isAdmin
+              ? "Oversee all team tasks, monitor working sessions, and assign tasks to any team member."
+              : `Showing your assigned tasks. Other team members' tasks are hidden from your view.`}
           </p>
         </div>
 
@@ -137,7 +171,9 @@ export default function TasksPage() {
             <CheckSquare className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="text-2xl font-black text-slate-900">{totalTasks}</div>
-          <span className="text-[11px] text-slate-400">All registered tasks</span>
+          <span className="text-[11px] text-slate-400">
+            {isAdmin ? "All registered tasks" : "Your assigned tasks"}
+          </span>
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
@@ -146,7 +182,9 @@ export default function TasksPage() {
             <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
           </div>
           <div className="text-2xl font-black text-amber-600">{inProgressCount}</div>
-          <span className="text-[11px] text-slate-400">Currently active</span>
+          <span className="text-[11px] text-slate-400">
+            {isAdmin ? "Currently active across team" : "Your active tasks"}
+          </span>
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
@@ -155,7 +193,9 @@ export default function TasksPage() {
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="text-2xl font-black text-emerald-600">{completedCount}</div>
-          <span className="text-[11px] text-slate-400">Finished deliverables</span>
+          <span className="text-[11px] text-slate-400">
+            {isAdmin ? "Finished team deliverables" : "Your finished deliverables"}
+          </span>
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
@@ -166,7 +206,9 @@ export default function TasksPage() {
           <div className="text-2xl font-black text-slate-900 font-mono">
             {formatDurationSeconds(totalTrackedSeconds)}
           </div>
-          <span className="text-[11px] text-slate-400">Sum of work sessions</span>
+          <span className="text-[11px] text-slate-400">
+            {isAdmin ? "Sum of all team work" : "Your logged work hours"}
+          </span>
         </div>
       </div>
 
@@ -178,7 +220,11 @@ export default function TasksPage() {
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by title, code (TASK-1024), assignee or category..."
+              placeholder={
+                isAdmin
+                  ? "Search by title, code (TASK-1024), assignee or category..."
+                  : "Search your tasks by title, code or category..."
+              }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 placeholder:text-slate-400"
@@ -186,7 +232,26 @@ export default function TasksPage() {
           </div>
 
           {/* Quick Filters */}
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Admin Assignee Filter */}
+            {isAdmin && (
+              <div className="flex items-center space-x-1.5">
+                <select
+                  value={assigneeFilter}
+                  onChange={(e) => setAssigneeFilter(e.target.value)}
+                  className="text-xs font-semibold rounded-xl border border-indigo-200 bg-indigo-50/50 text-indigo-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                >
+                  <option value="all">👥 All Team Members</option>
+                  <option value="unassigned">⏳ Unassigned Tasks</option>
+                  {users.map((u) => (
+                    <option key={u._id?.toString()} value={u._id?.toString()}>
+                      {u.name} ({u.title || u.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
@@ -199,18 +264,27 @@ export default function TasksPage() {
               <option value="low">Low</option>
             </select>
 
-            {currentUser && (
+            {isAdmin && currentUser && (
               <button
-                onClick={() => setAssignedToMeOnly(!assignedToMeOnly)}
+                onClick={() =>
+                  setAssigneeFilter(assigneeFilter === currentUser.id ? "all" : currentUser.id)
+                }
                 className={`px-3 py-2 text-xs font-semibold rounded-xl border transition-colors flex items-center space-x-1.5 ${
-                  assignedToMeOnly
-                    ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                  assigneeFilter === currentUser.id
+                    ? "bg-indigo-600 border-indigo-600 text-white shadow-xs"
                     : "border-slate-200 text-slate-600 hover:bg-slate-50"
                 }`}
               >
                 <UserCheck className="w-3.5 h-3.5" />
                 <span>Assigned to Me</span>
               </button>
+            )}
+
+            {!isAdmin && (
+              <span className="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 text-slate-700 border border-slate-200 flex items-center space-x-1.5">
+                <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
+                <span>My Tasks Only</span>
+              </span>
             )}
           </div>
         </div>

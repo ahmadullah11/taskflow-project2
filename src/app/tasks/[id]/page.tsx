@@ -41,7 +41,9 @@ export default function TaskDetailsPage({
       ]);
 
       if (!taskRes.ok) {
-        if (taskRes.status === 404) {
+        if (taskRes.status === 403) {
+          setError("Access Restricted: This task is assigned to another team member. You can only view tasks assigned to or created by you.");
+        } else if (taskRes.status === 404) {
           setError("Task not found.");
         } else {
           setError("Failed to load task details.");

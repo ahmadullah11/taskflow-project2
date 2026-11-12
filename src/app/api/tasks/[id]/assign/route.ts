@@ -13,6 +13,14 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Business Rule: Only Admin can assign or reassign tasks
+    if (user.role !== "admin") {
+      return NextResponse.json(
+        { error: "Forbidden: Only administrators can assign or reassign tasks." },
+        { status: 403 }
+      );
+    }
+
     const { id } = await props.params;
     const body = await req.json();
     const { assigneeId } = body;

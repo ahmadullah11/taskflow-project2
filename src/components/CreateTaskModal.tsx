@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { UserDoc, TaskPriority } from "@/lib/types";
 import { getInitials } from "@/lib/date-utils";
-import { X, Plus, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useAuth } from "@/components/AuthContext";
+import { X, Plus, AlertCircle, CheckCircle2, ShieldCheck, UserCheck } from "lucide-react";
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -16,6 +17,9 @@ export default function CreateTaskModal({
   onClose,
   onTaskCreated,
 }: CreateTaskModalProps) {
+  const { user: currentUser } = useAuth();
+  const isAdmin = currentUser?.role === "admin";
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("Backend Development");
@@ -27,12 +31,16 @@ export default function CreateTaskModal({
 
   useEffect(() => {
     if (isOpen) {
-      fetch("/api/users")
-        .then((res) => res.json())
-        .then((data) => setUsers(data.users || []))
-        .catch(console.error);
+      if (isAdmin) {
+        fetch("/api/users")
+          .then((res) => res.json())
+          .then((data) => setUsers(data.users || []))
+          .catch(console.error);
+      } else if (currentUser) {
+        setAssigneeId(currentUser.id);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, isAdmin, currentUser]);
 
   if (!isOpen) return null;
 
@@ -46,6 +54,8 @@ export default function CreateTaskModal({
     setLoading(true);
     setError(null);
     try {
+      const targetAssigneeId = isAdmin ? (assigneeId || null) : (currentUser?.id || null);
+
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -54,7 +64,7 @@ export default function CreateTaskModal({
           description: description.trim(),
           category: category.trim(),
           priority,
-          assigneeId: assigneeId || null,
+          assigneeId: targetAssigneeId,
         }),
       });
 
@@ -164,26 +174,62 @@ export default function CreateTaskModal({
           </div>
 
           {/* Assignee Selection */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700">
-              Assignee (Team Member)
-            </label>
-            <select
-              value={assigneeId}
-              onChange={(e) => setAssigneeId(e.target.value)}
-              className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
-            >
-              <option value="">-- Unassigned (Anyone can start) --</option>
-              {users.map((u) => (
-                <option key={u._id?.toString()} value={u._id?.toString()}>
-                  {u.name} ({u.title || u.role})
-                </option>
-              ))}
-            </select>
-            <p className="text-[11px] text-slate-400">
-              Only the assigned member will be able to start and stop work sessions on this task.
-            </p>
-          </div>
+          {isAdmin ? (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-700">
+                  Assignee (Team Member)
+                </label>
+                <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-md">
+                  <ShieldCheck className="w-3 h-3 text-indigo-600" />
+                  <span>Admin Privilege: Assign to Anyone</span>
+                </span>
+              </div>
+              <select
+                value={assigneeId}
+                onChange={(e) => setAssigneeId(e.target.value)}
+                className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
+              >
+                <option value="">-- Unassigned (Anyone can start) --</option>
+                {users.map((u) => (
+                  <option key={u._id?.toString()} value={u._id?.toString()}>
+                    {u.name} ({u.title || u.role})
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-400">
+                As an Admin, you have full control to assign this task to any team member or leave it open.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700">
+                Assignee
+              </label>
+              <div className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 rounded-md bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center">
+                    {currentUser ? getInitials(currentUser.name) : "ME"}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-xs leading-tight">
+                      {currentUser?.name || "Ahmad Ullah"}
+                    </p>
+                    <p className="text-[10px] text-slate-400 capitalize">
+                      {currentUser?.title || "Software Engineer"}
+                    </p>
+                  </div>
+                </div>
+                <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">
+                  <UserCheck className="w-3 h-3 text-indigo-500" />
+                  <span>Self Assigned</span>
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Tasks created by team members are assigned to you. Only Admins can assign tasks to other colleagues.
+              </p>
+            </div>
+          )}
 
           {/* Description */}
           <div className="space-y-1">

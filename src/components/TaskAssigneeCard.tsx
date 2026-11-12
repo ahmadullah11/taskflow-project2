@@ -20,12 +20,7 @@ export default function TaskAssigneeCard({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const canReassign =
-    currentUser &&
-    (currentUser.role === "admin" ||
-      currentUser.role === "manager" ||
-      currentUser.id === task.createdById ||
-      currentUser.id === task.assigneeId);
+  const canReassign = currentUser?.role === "admin";
 
   useEffect(() => {
     async function fetchUsers() {
@@ -89,6 +84,17 @@ export default function TaskAssigneeCard({
                   Select Team Member
                 </div>
                 <div className="max-h-60 overflow-y-auto p-1 space-y-0.5">
+                  <button
+                    onClick={() => handleSelectAssignee(null)}
+                    className={`w-full text-left px-2.5 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
+                      !task.assigneeId
+                        ? "bg-slate-100 text-slate-900 font-semibold"
+                        : "hover:bg-slate-50 text-slate-600"
+                    }`}
+                  >
+                    <span className="italic text-slate-500">-- Unassigned --</span>
+                    {!task.assigneeId && <Check className="w-3.5 h-3.5 text-slate-600" />}
+                  </button>
                   {users.map((u) => {
                     const isSelected = task.assigneeId === u._id?.toString();
                     return (

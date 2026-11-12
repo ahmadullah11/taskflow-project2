@@ -24,6 +24,21 @@ export async function GET(
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
+    const user = await getCurrentUser(req);
+    // Non-admin users can only view their own related tasks
+    if (user && user.role !== "admin") {
+      const isRelated =
+        task.assigneeId === user.id ||
+        task.assignee?._id === user.id ||
+        task.createdById === user.id;
+      if (!isRelated) {
+        return NextResponse.json(
+          { error: "Access denied: You can only view tasks assigned to or created by you." },
+          { status: 403 }
+        );
+      }
+    }
+
     return NextResponse.json({
       task: {
         ...task,

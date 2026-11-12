@@ -10,11 +10,29 @@ export async function GET(
     const user = await getCurrentUser(req);
     const { id } = await props.params;
 
-    const targetUserId = id === "me" && user ? user.id : id;
-
     const sessionsCol = await getWorkSessionsCollection();
+    let query: any = {};
+
+    if (id === "all") {
+      if (user && user.role === "admin") {
+        query = {}; // Admin sees all logs
+      } else if (user) {
+        query = { userId: user.id }; // Non-admin only sees their own logs
+      } else {
+        return NextResponse.json({ sessions: [], totalDurationSeconds: 0 });
+      }
+    } else {
+      const targetUserId = id === "me" && user ? user.id : id;
+      if (!user || (user.role !== "admin" && targetUserId !== user.id)) {
+        // Enforce privacy: non-admin can only see their own logs
+        query = { userId: user ? user.id : "" };
+      } else {
+        query = { userId: targetUserId };
+      }
+    }
+
     const sessions = await sessionsCol
-      .find({ userId: targetUserId })
+      .find(query)
       .sort({ startTime: -1 })
       .toArray();
 

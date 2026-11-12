@@ -6,34 +6,70 @@ import { TaskPriority, TaskStatus } from "@/lib/types";
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await getCurrentUser(req);
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const priority = searchParams.get("priority");
     const assigneeId = searchParams.get("assigneeId");
     const search = searchParams.get("search");
 
-    const query: any = {};
+    const andConditions: any[] = [];
+
+    // Role-based visibility check:
+    // If non-admin (e.g. member like Ahmad Ullah), hide all other users' tasks
+    // and only return tasks related to the logged-in user.
+    if (!user || user.role !== "admin") {
+      if (user) {
+        andConditions.push({
+          $or: [
+            { assigneeId: user.id },
+            { "assignee._id": user.id },
+            { createdById: user.id },
+          ],
+        });
+      } else {
+        return NextResponse.json({ tasks: [] });
+      }
+    } else {
+      // User is Admin: show all tasks! Admin can also optionally filter by assignee.
+      if (assigneeId && assigneeId !== "all") {
+        if (assigneeId === "unassigned") {
+          andConditions.push({
+            $or: [
+              { assigneeId: null },
+              { assigneeId: { $exists: false } },
+              { assigneeId: "" },
+            ],
+          });
+        } else {
+          andConditions.push({
+            $or: [{ assigneeId: assigneeId }, { "assignee._id": assigneeId }],
+          });
+        }
+      }
+    }
 
     if (status && status !== "all") {
-      query.status = status;
+      andConditions.push({ status });
     }
 
     if (priority && priority !== "all") {
-      query.priority = priority;
+      andConditions.push({ priority });
     }
 
-    if (assigneeId && assigneeId !== "all") {
-      query.assigneeId = assigneeId;
+    if (search && search.trim()) {
+      const searchRegex = { $regex: search.trim(), $options: "i" };
+      andConditions.push({
+        $or: [
+          { title: searchRegex },
+          { taskCode: searchRegex },
+          { category: searchRegex },
+          { "assignee.name": searchRegex },
+        ],
+      });
     }
 
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { taskCode: { $regex: search, $options: "i" } },
-        { category: { $regex: search, $options: "i" } },
-        { "assignee.name": { $regex: search, $options: "i" } },
-      ];
-    }
+    const query = andConditions.length > 0 ? { $and: andConditions } : {};
 
     const tasksCol = await getTasksCollection();
     const tasks = await tasksCol.find(query).sort({ createdAt: -1 }).toArray();
@@ -92,11 +128,21 @@ export async function POST(req: NextRequest) {
     }
     const taskCode = `TASK-${nextNumber}`;
 
-    // Lookup assignee if provided
+    // Role-based assignment:
+    // Only Admin can assign tasks to all users.
+    // If user is not admin, task is assigned to the current user (self-assigned).
+    let targetAssigneeId: string | null = null;
+    if (user.role === "admin") {
+      targetAssigneeId = assigneeId || null;
+    } else {
+      targetAssigneeId = user.id;
+    }
+
+    // Lookup assignee if targetAssigneeId is provided
     let assignee = null;
-    if (assigneeId) {
+    if (targetAssigneeId) {
       try {
-        const foundAssignee = await usersCol.findOne({ _id: new ObjectId(assigneeId) });
+        const foundAssignee = await usersCol.findOne({ _id: new ObjectId(targetAssigneeId) });
         if (foundAssignee) {
           assignee = {
             _id: foundAssignee._id!.toString(),
