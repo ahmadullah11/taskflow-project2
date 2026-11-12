@@ -8,8 +8,10 @@ A production-ready Task Tracking and Time Logging System built with **Next.js 16
 
 ### 1. Task Assignment & Management
 - Tasks feature an `assignee` field representing a designated team member.
+- The `/tasks` view renders every task in a searchable, filterable table (task number, title, category, assignee & role, status, time logged, actions).
 - Administrators can create tasks, edit every field (title, description, category, priority, status, assignee), reassign, and delete any task.
 - Members can create self-assigned tasks and move their own tasks through `Todo`, `In Progress`, and `Completed`.
+- Visibility is strict: admins see all tasks; members and managers only receive tasks assigned to their own account (enforced in the UI and the API query).
 - Unique task codes (e.g. `TASK-1024`, `TASK-1025`) auto-generated.
 
 ### 1b. Admin User Management (`/users`)

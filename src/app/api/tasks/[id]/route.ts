@@ -39,15 +39,13 @@ export async function GET(
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    // Non-admin users can only view their own related tasks
+    // Non-admin users can only view tasks strictly assigned to them.
     if (user.role !== "admin") {
-      const isRelated =
-        task.assigneeId === user.id ||
-        task.assignee?._id === user.id ||
-        task.createdById === user.id;
-      if (!isRelated) {
+      const isAssigned =
+        task.assigneeId === user.id || task.assignee?._id === user.id;
+      if (!isAssigned) {
         return NextResponse.json(
-          { error: "Access denied: You can only view tasks assigned to or created by you." },
+          { error: "Access denied: You can only view tasks assigned to you." },
           { status: 403 }
         );
       }

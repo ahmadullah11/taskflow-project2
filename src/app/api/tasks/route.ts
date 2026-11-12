@@ -19,26 +19,21 @@ export async function GET(req: NextRequest) {
 
     const andConditions: Filter<TaskDoc>[] = [];
 
-    // Role-based visibility check:
-    // If non-admin (e.g. member like Ahmad Ullah), hide all other users' tasks
-    // and only return tasks related to the logged-in user.
-    if (!user || user.role !== "admin") {
-      if (user) {
-        andConditions.push({
-          $or: [
-            { assigneeId: user.id },
-            { "assignee._id": user.id },
-            { createdById: user.id },
-            // Unassigned tasks are visible to everyone so any member can pick
-            // them up via "Start Working" (which auto-assigns the task).
-            { assigneeId: null },
-            { assigneeId: { $exists: false } },
-            { assigneeId: "" },
-          ],
-        });
-      } else {
-        return NextResponse.json({ tasks: [] });
-      }
+    if (!user) {
+      return NextResponse.json(
+        { error: "Authentication required to view tasks." },
+        { status: 401 }
+      );
+    }
+
+    // Role-based visibility:
+    // - Admins see every task and may filter by assignee.
+    // - Everyone else only ever receives tasks strictly assigned to their own
+    //   account. Unassigned tasks and other members' tasks are excluded.
+    if (user.role !== "admin") {
+      andConditions.push({
+        $or: [{ assigneeId: user.id }, { "assignee._id": user.id }],
+      });
     } else {
       // User is Admin: show all tasks! Admin can also optionally filter by assignee.
       if (assigneeId && assigneeId !== "all") {

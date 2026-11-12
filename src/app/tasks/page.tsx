@@ -11,18 +11,13 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import {
   Plus,
   Search,
-  Filter,
   Clock,
   CheckCircle2,
-  AlertCircle,
   Layers,
   ArrowRight,
-  TrendingUp,
   UserCheck,
   CheckSquare,
-  Sparkles,
   ShieldCheck,
-  Users,
   Pencil,
   Trash2,
 } from "lucide-react";
@@ -63,7 +58,8 @@ export default function TasksPage() {
       if (priorityFilter !== "all") params.set("priority", priorityFilter);
       if (searchQuery) params.set("search", searchQuery);
 
-      // If admin and specific assignee selected
+      // Only admins can filter by assignee. The API also scopes non-admin
+      // requests to the signed-in user's own tasks.
       if (isAdmin && assigneeFilter !== "all") {
         params.set("assigneeId", assigneeFilter);
       }
@@ -81,6 +77,8 @@ export default function TasksPage() {
   }, [statusFilter, priorityFilter, searchQuery, assigneeFilter, isAdmin]);
 
   useEffect(() => {
+    // Fetching tasks for the active filters is the intended use of this effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchTasks();
   }, [fetchTasks]);
 
@@ -121,38 +119,25 @@ export default function TasksPage() {
     switch (status) {
       case "In Progress":
         return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
             <span>In Progress</span>
           </span>
         );
       case "Completed":
         return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
             <span>Completed</span>
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
             <span>Todo</span>
           </span>
         );
-    }
-  };
-
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "bg-rose-50 text-rose-700 border-rose-200";
-      case "high":
-        return "bg-orange-50 text-orange-700 border-orange-200";
-      case "medium":
-        return "bg-blue-50 text-blue-700 border-blue-200";
-      default:
-        return "bg-slate-50 text-slate-600 border-slate-200";
     }
   };
 
@@ -173,14 +158,14 @@ export default function TasksPage() {
             ) : (
               <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs">
                 <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Showing {currentUser?.name || "Ahmad"}&apos;s Tasks</span>
+                <span>Showing {currentUser?.name || "Your"}&apos;s Tasks</span>
               </span>
             )}
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             {isAdmin
               ? "Oversee all team tasks, monitor working sessions, and assign tasks to any team member."
-              : `Showing your tasks plus open, unassigned tasks you can pick up. Other members' tasks are hidden.`}
+              : "Showing only tasks assigned to you."}
           </p>
         </div>
 
@@ -296,27 +281,34 @@ export default function TasksPage() {
               <option value="low">Low</option>
             </select>
 
-            {isAdmin && currentUser && (
+            {isAdmin ? (
+              currentUser && (
+                <button
+                  onClick={() =>
+                    setAssigneeFilter(assigneeFilter === currentUser.id ? "all" : currentUser.id)
+                  }
+                  className={`px-3 py-2 text-xs font-semibold rounded-xl border transition-colors flex items-center space-x-1.5 ${
+                    assigneeFilter === currentUser.id
+                      ? "bg-indigo-600 border-indigo-600 text-white shadow-xs"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <UserCheck className="w-3.5 h-3.5" />
+                  <span>Assigned to Me</span>
+                </button>
+              )
+            ) : (
+              // Regular users are always scoped to their own tasks, so this
+              // control is intentionally disabled (no way to view others' tasks).
               <button
-                onClick={() =>
-                  setAssigneeFilter(assigneeFilter === currentUser.id ? "all" : currentUser.id)
-                }
-                className={`px-3 py-2 text-xs font-semibold rounded-xl border transition-colors flex items-center space-x-1.5 ${
-                  assigneeFilter === currentUser.id
-                    ? "bg-indigo-600 border-indigo-600 text-white shadow-xs"
-                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                }`}
+                type="button"
+                disabled
+                title="You can only view tasks assigned to your account."
+                className="px-3 py-2 text-xs font-semibold rounded-xl border border-indigo-600 bg-indigo-600 text-white shadow-xs flex items-center space-x-1.5 cursor-not-allowed"
               >
                 <UserCheck className="w-3.5 h-3.5" />
                 <span>Assigned to Me</span>
               </button>
-            )}
-
-            {!isAdmin && (
-              <span className="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 text-slate-700 border border-slate-200 flex items-center space-x-1.5">
-                <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
-                <span>My Tasks + Open</span>
-              </span>
             )}
           </div>
         </div>
@@ -339,7 +331,7 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Tasks List Grid */}
+      {/* Tasks Table */}
       {loading ? (
         <div className="py-20 text-center">
           <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
@@ -363,112 +355,157 @@ export default function TasksPage() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {tasks.map((task) => {
-            const hasActiveSession = Boolean(task.activeSession);
-
-            return (
-              <div
-                key={task._id?.toString() || task.taskCode}
-                className="group bg-white rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-indigo-200 transition-all flex flex-col"
-              >
-                <Link
-                  href={`/tasks/${task._id || task.taskCode}`}
-                  className="p-5 flex-1 flex flex-col justify-between"
-                >
-                  <div>
-                    {/* Top Bar: Code, Status, Priority */}
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="font-mono text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200/80">
+                  <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+                    Task Number
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Title
+                  </th>
+                  <th className="hidden md:table-cell px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+                    Category / Project
+                  </th>
+                  <th className="hidden lg:table-cell px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+                    Assignee &amp; Role
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+                    Status
+                  </th>
+                  <th className="hidden sm:table-cell px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+                    Time Logged
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 text-right whitespace-nowrap">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {tasks.map((task) => (
+                  <tr
+                    key={task._id?.toString() || task.taskCode}
+                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70 transition-colors"
+                  >
+                    {/* Task Number */}
+                    <td className="px-4 py-3.5 align-middle">
+                      <Link
+                        href={`/tasks/${task._id || task.taskCode}`}
+                        className="inline-flex font-mono text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100 hover:bg-indigo-100 transition-colors whitespace-nowrap"
+                      >
                         {task.taskCode}
-                      </span>
-                      <div className="flex items-center space-x-1.5">
-                        {getStatusBadge(task.status)}
-                      </div>
-                    </div>
+                      </Link>
+                    </td>
 
                     {/* Title */}
-                    <h3 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-2 mb-1.5">
-                      {task.title}
-                    </h3>
-
-                    {/* Category */}
-                    <div className="flex items-center space-x-1 text-[11px] text-slate-400 font-medium mb-4">
-                      <Layers className="w-3 h-3" />
-                      <span>{task.category || "General"}</span>
-                    </div>
-
-                    {/* Active Timer Pill if running right now */}
-                    {hasActiveSession && (
-                      <div className="mb-4 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold flex items-center justify-between">
-                        <span className="flex items-center space-x-1.5">
-                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                          <span>Active Session</span>
-                        </span>
-                        <span className="text-[11px] text-amber-700 font-normal">
-                          by {task.activeSession?.userName}
-                        </span>
+                    <td className="px-4 py-3.5 align-middle">
+                      <div className="min-w-[180px] max-w-[340px]">
+                        <Link
+                          href={`/tasks/${task._id || task.taskCode}`}
+                          className="text-sm font-bold text-slate-900 hover:text-indigo-600 transition-colors line-clamp-2"
+                        >
+                          {task.title}
+                        </Link>
                       </div>
-                    )}
-                  </div>
+                    </td>
 
-                  {/* Footer: Assignee & Logged Time */}
-                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                    {/* Assignee */}
-                    {task.assignee ? (
+                    {/* Category / Project */}
+                    <td className="hidden md:table-cell px-4 py-3.5 align-middle">
+                      <span className="inline-flex items-center space-x-1.5 text-xs text-slate-500 font-medium whitespace-nowrap">
+                        <Layers className="w-3.5 h-3.5 text-slate-300" />
+                        <span>{task.category || "General"}</span>
+                      </span>
+                    </td>
+
+                    {/* Assignee & Role */}
+                    <td className="hidden lg:table-cell px-4 py-3.5 align-middle">
+                      {task.assignee ? (
+                        <div className="flex items-center space-x-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center border border-indigo-200 flex-shrink-0">
+                            {getInitials(task.assignee.name)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-slate-800 leading-tight truncate">
+                              {task.assignee.name}
+                            </p>
+                            <p className="text-[10px] text-slate-400 capitalize truncate">
+                              {task.assignee.title || task.assignee.role}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 italic">Unassigned</span>
+                      )}
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-4 py-3.5 align-middle">{getStatusBadge(task.status)}</td>
+
+                    {/* Time Logged */}
+                    <td className="hidden sm:table-cell px-4 py-3.5 align-middle">
                       <div className="flex items-center space-x-2">
-                        <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center border border-indigo-200">
-                          {getInitials(task.assignee.name)}
-                        </div>
-                        <div className="text-left">
-                          <p className="text-xs font-semibold text-slate-800 leading-tight">
-                            {task.assignee.name}
-                          </p>
-                          <p className="text-[10px] text-slate-400 capitalize">
-                            {task.assignee.title || task.assignee.role}
-                          </p>
-                        </div>
+                        <span className="inline-flex items-center space-x-1 text-xs font-mono font-bold text-slate-700 whitespace-nowrap">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{formatDurationSeconds(task.totalDurationSeconds || 0)}</span>
+                        </span>
+                        {task.activeSession && (
+                          <span
+                            title={`Active session by ${task.activeSession.userName || "a team member"}`}
+                            className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            <span>Live</span>
+                          </span>
+                        )}
                       </div>
-                    ) : (
-                      <span className="text-xs text-slate-400 italic">Unassigned</span>
-                    )}
+                    </td>
 
-                    {/* Total Logged Hours */}
-                    <div className="text-right">
-                      <div className="inline-flex items-center space-x-1 text-xs font-mono font-bold text-slate-700 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200/60">
-                        <Clock className="w-3 h-3 text-slate-400" />
-                        <span>{formatDurationSeconds(task.totalDurationSeconds || 0)}</span>
+                    {/* Actions */}
+                    <td className="px-4 py-3.5 align-middle">
+                      <div className="flex items-center justify-end space-x-1.5">
+                        {isAdmin ? (
+                          <>
+                            <button
+                              type="button"
+                              title="Edit task"
+                              aria-label={`Edit ${task.taskCode}`}
+                              onClick={() => setEditingTask(task)}
+                              className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Delete task"
+                              aria-label={`Delete ${task.taskCode}`}
+                              onClick={() => {
+                                setDeleteError(null);
+                                setDeletingTask(task);
+                              }}
+                              className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <Link
+                            href={`/tasks/${task._id || task.taskCode}`}
+                            title="View task"
+                            aria-label={`View ${task.taskCode}`}
+                            className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                          >
+                            <ArrowRight className="w-4 h-4" />
+                          </Link>
+                        )}
                       </div>
-                    </div>
-                  </div>
-                </Link>
-
-                {isAdmin && (
-                  <div className="flex items-center justify-end space-x-2 border-t border-slate-100 bg-slate-50/60 px-5 py-2.5 rounded-b-3xl">
-                    <button
-                      type="button"
-                      onClick={() => setEditingTask(task)}
-                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 border border-slate-200 bg-white hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-colors"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeleteError(null);
-                        setDeletingTask(task);
-                      }}
-                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 border border-slate-200 bg-white hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Delete</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTasksCollection, getWorkSessionsCollection } from "@/lib/mongodb";
 import { getCurrentUser } from "@/lib/auth";
-import { ObjectId } from "mongodb";
+import { ObjectId, Filter } from "mongodb";
+import { TaskDoc } from "@/lib/types";
+
+function buildTaskQuery(id: string): Filter<TaskDoc> {
+  // A 24-char hex string is an ObjectId; anything else is treated as a task code.
+  if (id.length === 24 && ObjectId.isValid(id)) {
+    return { $or: [{ _id: new ObjectId(id) }, { taskCode: id }] };
+  }
+  return { taskCode: id };
+}
 
 export async function GET(
   req: NextRequest,
@@ -20,12 +29,7 @@ export async function GET(
     const tasksCol = await getTasksCollection();
     const sessionsCol = await getWorkSessionsCollection();
 
-    let taskQuery: any = {};
-    if (ObjectId.isValid(id)) {
-      taskQuery = { $or: [{ _id: new ObjectId(id) }, { taskCode: id }] };
-    } else {
-      taskQuery = { taskCode: id };
-    }
+    const taskQuery = buildTaskQuery(id);
 
     const task = await tasksCol.findOne(taskQuery);
     if (!task) {
@@ -33,14 +37,11 @@ export async function GET(
     }
 
     if (user.role !== "admin") {
-      const isRelated =
-        !task.assigneeId ||
-        task.assigneeId === user.id ||
-        task.assignee?._id === user.id ||
-        task.createdById === user.id;
-      if (!isRelated) {
+      const isAssigned =
+        task.assigneeId === user.id || task.assignee?._id === user.id;
+      if (!isAssigned) {
         return NextResponse.json(
-          { error: "Access denied: You can only view work sessions for your own tasks." },
+          { error: "Access denied: You can only view work sessions for tasks assigned to you." },
           { status: 403 }
         );
       }
@@ -61,7 +62,7 @@ export async function GET(
       totalDurationSeconds: task.totalDurationSeconds || 0,
       activeSession: task.activeSession || null,
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Fetch sessions error:", err);
     return NextResponse.json(
       { error: "Failed to fetch work sessions" },
