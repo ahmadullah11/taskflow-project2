@@ -4,11 +4,11 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthContext";
-import { Clock, Lock, Mail, ArrowRight, Sparkles, AlertCircle } from "lucide-react";
+import { Clock, Lock, Mail, ArrowRight, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, quickLogin } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,25 +32,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleDemoLogin = async (demoEmail: string) => {
-    setLoading(true);
-    setError(null);
-    const success = await quickLogin(demoEmail);
-    if (success) {
-      router.push("/tasks");
-    } else {
-      setError("Demo login failed. Make sure database is seeded.");
-      setLoading(false);
-    }
-  };
-
-  const demoAccounts = [
-    { name: "Ahmad Ullah", email: "ahmad@company.com", role: "Software Engineer" },
-    { name: "Sarah Jenkins", email: "sarah@company.com", role: "Product Manager" },
-    { name: "Alex Rivera", email: "alex@company.com", role: "Frontend Developer" },
-    { name: "System Admin", email: "admin@company.com", role: "Administrator" },
-  ];
-
   return (
     <div className="min-h-[85vh] flex items-center justify-center px-4 py-12">
       <div className="max-w-md w-full space-y-6">
@@ -65,38 +46,6 @@ export default function LoginPage() {
           <p className="text-xs text-slate-500 mt-1">
             Sign in to track tasks and log your team hours
           </p>
-        </div>
-
-        {/* Demo Fast Login Panel */}
-        <div className="bg-indigo-50/70 border border-indigo-100 rounded-3xl p-5 shadow-xs">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-900 flex items-center space-x-1">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              <span>1-Click Demo Profiles</span>
-            </span>
-            <span className="text-[10px] text-indigo-600 font-semibold bg-indigo-100 px-2 py-0.5 rounded-full">
-              Instant
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            {demoAccounts.map((account) => (
-              <button
-                key={account.email}
-                type="button"
-                onClick={() => handleDemoLogin(account.email)}
-                disabled={loading}
-                className="text-left p-2.5 rounded-xl bg-white border border-indigo-100 hover:border-indigo-300 hover:shadow-xs transition-all group disabled:opacity-50"
-              >
-                <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 leading-tight">
-                  {account.name}
-                </p>
-                <p className="text-[10px] text-slate-400 mt-0.5 truncate">
-                  {account.role}
-                </p>
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Login Form */}

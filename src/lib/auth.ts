@@ -5,9 +5,9 @@ import { cookies } from "next/headers";
 import { AuthUser, UserDoc } from "./types";
 import { getUsersCollection } from "./mongodb";
 import { ObjectId } from "mongodb";
+import { AUTH_COOKIE_NAME, JWT_SECRET } from "./auth-constants";
 
-const JWT_SECRET = process.env.JWT_SECRET || "super_secret_task_tracker_jwt_key_2026";
-export const AUTH_COOKIE_NAME = "tasktrack_token";
+export { AUTH_COOKIE_NAME };
 
 export async function hashPassword(plain: string): Promise<string> {
   const salt = await bcrypt.genSalt(10);

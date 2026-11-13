@@ -7,11 +7,10 @@ interface AuthContextType {
   user: AuthUser | null;
   activeSession: WorkSessionDoc | null;
   loading: boolean;
-  login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (data: { name: string; email: string; password?: string; role?: string; title?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
-  quickLogin: (email: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -22,7 +21,6 @@ const AuthContext = createContext<AuthContextType>({
   signup: async () => ({ success: false }),
   logout: async () => {},
   refreshAuth: async () => {},
-  quickLogin: async () => false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -54,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshAuth();
   }, [refreshAuth]);
 
-  const login = async (email: string, password = "password123") => {
+  const login = async (email: string, password: string) => {
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -112,11 +110,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const quickLogin = async (email: string) => {
-    const res = await login(email, "password123");
-    return res.success;
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -127,7 +120,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signup,
         logout,
         refreshAuth,
-        quickLogin,
       }}
     >
       {children}
