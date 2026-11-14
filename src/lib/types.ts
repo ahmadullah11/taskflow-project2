@@ -31,6 +31,8 @@ export interface TaskDoc {
   taskCode: string; // e.g., "TASK-1024"
   title: string;
   description: string;
+  /** Optional reference screenshot (compressed data URL or hosted image URL). */
+  image?: string | null;
   category: string; // e.g., "Backend Development"
   priority: TaskPriority;
   status: TaskStatus;

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { UserDoc, TaskPriority } from "@/lib/types";
 import { getInitials } from "@/lib/date-utils";
 import { useAuth } from "@/components/AuthContext";
+import TaskImageUpload from "@/components/TaskImageUpload";
 import { X, Plus, AlertCircle, CheckCircle2, ShieldCheck, UserCheck } from "lucide-react";
 
 interface CreateTaskModalProps {
@@ -22,6 +23,7 @@ export default function CreateTaskModal({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [image, setImage] = useState<string | null>(null);
   const [category, setCategory] = useState("Backend Development");
   const [priority, setPriority] = useState<TaskPriority>("medium");
   const [assigneeId, setAssigneeId] = useState("");
@@ -37,6 +39,7 @@ export default function CreateTaskModal({
           .then((data) => setUsers(data.users || []))
           .catch(console.error);
       } else if (currentUser) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setAssigneeId(currentUser.id);
       }
     }
@@ -62,6 +65,7 @@ export default function CreateTaskModal({
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim(),
+          image,
           category: category.trim(),
           priority,
           assigneeId: targetAssigneeId,
@@ -76,26 +80,27 @@ export default function CreateTaskModal({
       await onTaskCreated();
       setTitle("");
       setDescription("");
+      setImage(null);
       setAssigneeId("");
       onClose();
-    } catch (err: any) {
-      setError(err.message || "Failed to create task.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create task.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="relative bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-3 backdrop-blur-sm sm:p-4">
+      <div className="relative max-h-[90vh] w-[94vw] max-w-lg overflow-y-auto rounded-3xl border border-slate-100 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur-sm sm:px-6 sm:py-5">
+          <div className="flex min-w-0 items-center space-x-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 font-bold text-indigo-600">
               <Plus className="w-4 h-4" />
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 leading-tight">
+            <div className="min-w-0">
+              <h3 className="text-base font-bold leading-tight text-slate-900">
                 Create New Task
               </h3>
               <p className="text-xs text-slate-500">
@@ -106,14 +111,15 @@ export default function CreateTaskModal({
           <button
             onClick={onClose}
             disabled={loading}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            aria-label="Close create task modal"
+            className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 p-5 sm:p-6">
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start space-x-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -132,7 +138,7 @@ export default function CreateTaskModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Implement User Authentication"
-              className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900"
+              className="w-full text-base px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900"
             />
           </div>
 
@@ -145,7 +151,7 @@ export default function CreateTaskModal({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
+                className="w-full text-base px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
               >
                 <option value="Backend Development">Backend Development</option>
                 <option value="Frontend Development">Frontend Development</option>
@@ -163,7 +169,7 @@ export default function CreateTaskModal({
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
+                className="w-full text-base px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -188,7 +194,7 @@ export default function CreateTaskModal({
               <select
                 value={assigneeId}
                 onChange={(e) => setAssigneeId(e.target.value)}
-                className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
+                className="w-full text-base px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
               >
                 <option value="">-- Unassigned (Anyone can start) --</option>
                 {users.map((u) => (
@@ -206,7 +212,7 @@ export default function CreateTaskModal({
               <label className="text-xs font-semibold text-slate-700">
                 Assignee
               </label>
-              <div className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 flex items-center justify-between">
+              <div className="w-full text-base px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <div className="w-6 h-6 rounded-md bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center">
                     {currentUser ? getInitials(currentUser.name) : "ME"}
@@ -241,24 +247,31 @@ export default function CreateTaskModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Outline task objectives, acceptance criteria, or technical details..."
-              className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 resize-none"
+              className="w-full text-base px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 resize-none"
             />
           </div>
 
+          {/* Reference screenshot (Admin & self-assigned users) */}
+          <TaskImageUpload
+            value={image}
+            onChange={setImage}
+            disabled={loading}
+          />
+
           {/* Action Buttons */}
-          <div className="pt-2 flex items-center justify-end space-x-3">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
+              className="w-full rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 sm:w-auto sm:py-2"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || !title.trim()}
-              className="px-5 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-200 disabled:opacity-50 flex items-center space-x-1.5 transition-all"
+              className="flex w-full items-center justify-center space-x-1.5 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white shadow-md shadow-indigo-200 transition-all hover:bg-indigo-700 disabled:opacity-50 sm:w-auto sm:py-2"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>{loading ? "Creating..." : "Create Task"}</span>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { formatDigitalTimer, formatTimeOnly } from "@/lib/date-utils";
-import { Play, Square, AlertCircle, Clock, CheckCircle, ShieldAlert } from "lucide-react";
+import { Play, Square, AlertCircle, Clock, ShieldAlert } from "lucide-react";
 import { TaskDoc, AuthUser, WorkSessionDoc } from "@/lib/types";
 import StopSessionModal from "./StopSessionModal";
 import Link from "next/link";
@@ -48,6 +48,7 @@ export default function TaskDetailsTimer({
   // Live timer tick
   useEffect(() => {
     if (!activeTaskSession || !activeTaskSession.startTime) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setElapsedSeconds(0);
       return;
     }
@@ -80,8 +81,8 @@ export default function TaskDetailsTimer({
         throw new Error(data.error || "Failed to start working session");
       }
       await onSessionUpdated();
-    } catch (err: any) {
-      setErrorMessage(err.message || "Failed to start session");
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to start session");
     } finally {
       setActionLoading(false);
     }
@@ -102,7 +103,7 @@ export default function TaskDetailsTimer({
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center space-x-2">
           <div className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse" />
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">

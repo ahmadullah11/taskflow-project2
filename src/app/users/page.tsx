@@ -182,7 +182,7 @@ export default function UsersPage() {
 
         <button
           onClick={openAdd}
-          className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-200 hover:shadow-lg transition-all active:scale-95"
+          className="inline-flex w-full items-center justify-center space-x-2 rounded-2xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-indigo-200 transition-all hover:bg-indigo-700 hover:shadow-lg active:scale-95 sm:w-auto"
         >
           <UserPlus className="w-4 h-4" />
           <span>Add Team Member</span>
@@ -190,7 +190,7 @@ export default function UsersPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {[
           { label: "Total Members", value: users.length, icon: Users },
           {
@@ -238,7 +238,7 @@ export default function UsersPage() {
                 placeholder="Search members by name or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 placeholder:text-slate-400"
+                className="w-full pl-10 pr-4 py-2.5 text-base font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 placeholder:text-slate-400 sm:py-2 sm:text-xs"
               />
             </div>
 

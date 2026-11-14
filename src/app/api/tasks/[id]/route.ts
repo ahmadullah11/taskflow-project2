@@ -3,6 +3,7 @@ import { getTasksCollection, getUsersCollection } from "@/lib/mongodb";
 import { getCurrentUser } from "@/lib/auth";
 import { ObjectId, Filter } from "mongodb";
 import { TaskDoc, TaskPriority, TaskStatus } from "@/lib/types";
+import { normalizeTaskImage } from "@/lib/image-utils";
 
 const VALID_STATUSES: TaskStatus[] = ["Todo", "In Progress", "Completed"];
 const VALID_PRIORITIES: TaskPriority[] = ["low", "medium", "high", "urgent"];
@@ -75,16 +76,13 @@ export async function PATCH(
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (user.role !== "admin") {
-      return NextResponse.json(
-        { error: "Forbidden: Only administrators can edit tasks." },
-        { status: 403 }
-      );
-    }
+
+    const isAdmin = user.role === "admin";
 
     const { id } = await props.params;
     const body = await req.json();
-    const { title, description, category, priority, status, assigneeId } = body;
+    const { title, description, category, priority, status, assigneeId, image } =
+      body;
 
     const tasksCol = await getTasksCollection();
     const usersCol = await getUsersCollection();
@@ -96,7 +94,45 @@ export async function PATCH(
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
+    // Admins can edit any task. Regular users may edit tasks assigned to or
+    // created by them (this is what enables the user self-assigned view to
+    // attach/replace a reference screenshot).
+    const isOwnTask =
+      task.assigneeId === user.id ||
+      task.assignee?._id === user.id ||
+      task.createdById === user.id;
+
+    if (!isAdmin && !isOwnTask) {
+      return NextResponse.json(
+        {
+          error:
+            "Forbidden: You can only edit tasks that are assigned to you.",
+        },
+        { status: 403 }
+      );
+    }
+
+    // Only administrators may reassign a task to somebody else.
+    if (assigneeId !== undefined && !isAdmin) {
+      return NextResponse.json(
+        { error: "Forbidden: Only administrators can reassign tasks." },
+        { status: 403 }
+      );
+    }
+
+    const normalizedImage = normalizeTaskImage(image);
+    if (!normalizedImage.valid) {
+      return NextResponse.json(
+        { error: normalizedImage.error },
+        { status: 400 }
+      );
+    }
+
     const updates: Record<string, unknown> = { updatedAt: new Date() };
+
+    if (normalizedImage.value !== undefined) {
+      updates.image = normalizedImage.value;
+    }
 
     if (title !== undefined) {
       if (typeof title !== "string" || !title.trim()) {

@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { TaskDoc, TaskPriority, TaskStatus, UserDoc } from "@/lib/types";
+import { useAuth } from "@/components/AuthContext";
+import TaskImageUpload from "@/components/TaskImageUpload";
 import { X, Pencil, CheckCircle2, AlertCircle, ShieldCheck } from "lucide-react";
 
 interface TaskEditModalProps {
@@ -25,8 +27,12 @@ export default function TaskEditModal({
   onClose,
   onSaved,
 }: TaskEditModalProps) {
+  const { user: currentUser } = useAuth();
+  const canReassign = currentUser?.role === "admin";
+
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
+  const [image, setImage] = useState<string | null>(task.image || null);
   const [category, setCategory] = useState(task.category || "General");
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
   const [status, setStatus] = useState<TaskStatus>(task.status);
@@ -36,11 +42,13 @@ export default function TaskEditModal({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!canReassign) return;
+
     fetch("/api/users")
       .then((res) => (res.ok ? res.json() : { users: [] }))
       .then((data) => setUsers(data.users || []))
       .catch(console.error);
-  }, []);
+  }, [canReassign]);
 
   const categoryOptions = CATEGORIES.includes(category)
     ? CATEGORIES
@@ -62,10 +70,11 @@ export default function TaskEditModal({
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim(),
+          image,
           category: category.trim(),
           priority,
           status,
-          assigneeId: assigneeId || null,
+          ...(canReassign ? { assigneeId: assigneeId || null } : {}),
         }),
       });
 
@@ -84,15 +93,15 @@ export default function TaskEditModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="relative bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-3 backdrop-blur-sm sm:p-4">
+      <div className="relative max-h-[90vh] w-[94vw] max-w-lg overflow-y-auto rounded-3xl border border-slate-100 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur-sm sm:px-6 sm:py-5">
+          <div className="flex min-w-0 items-center space-x-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 text-indigo-600">
               <Pencil className="w-4 h-4" />
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 leading-tight">
+            <div className="min-w-0">
+              <h3 className="text-base font-bold leading-tight text-slate-900">
                 Edit Task
               </h3>
               <p className="text-xs text-slate-500 font-mono">{task.taskCode}</p>
@@ -102,13 +111,14 @@ export default function TaskEditModal({
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            aria-label="Close edit task modal"
+            className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 p-5 sm:p-6">
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start space-x-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -125,7 +135,7 @@ export default function TaskEditModal({
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900"
+              className="w-full text-base px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900"
             />
           </div>
 
@@ -137,7 +147,7 @@ export default function TaskEditModal({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
+                className="w-full text-base px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
               >
                 {categoryOptions.map((c) => (
                   <option key={c} value={c}>
@@ -154,7 +164,7 @@ export default function TaskEditModal({
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
+                className="w-full text-base px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -170,7 +180,7 @@ export default function TaskEditModal({
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as TaskStatus)}
-                className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
+                className="w-full text-base px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
               >
                 <option value="Todo">Todo</option>
                 <option value="In Progress">In Progress</option>
@@ -178,27 +188,29 @@ export default function TaskEditModal({
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-                <span>Assignee</span>
-                <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.5 rounded-md">
-                  <ShieldCheck className="w-2.5 h-2.5" />
-                  <span>Admin</span>
-                </span>
-              </label>
-              <select
-                value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
-              >
-                <option value="">-- Unassigned --</option>
-                {users.map((u) => (
-                  <option key={u._id?.toString()} value={u._id?.toString()}>
-                    {u.name} ({u.title || u.role})
-                  </option>
-                ))}
-              </select>
-            </div>
+            {canReassign && (
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                  <span>Assignee</span>
+                  <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.5 rounded-md">
+                    <ShieldCheck className="w-2.5 h-2.5" />
+                    <span>Admin</span>
+                  </span>
+                </label>
+                <select
+                  value={assigneeId}
+                  onChange={(e) => setAssigneeId(e.target.value)}
+                  className="w-full text-base px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
+                >
+                  <option value="">-- Unassigned --</option>
+                  {users.map((u) => (
+                    <option key={u._id?.toString()} value={u._id?.toString()}>
+                      {u.name} ({u.title || u.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1">
@@ -209,23 +221,30 @@ export default function TaskEditModal({
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 resize-none"
+              className="w-full text-base px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 resize-none"
             />
           </div>
 
-          <div className="pt-2 flex items-center justify-end space-x-3">
+          {/* Reference screenshot (Admin & self-assigned users) */}
+          <TaskImageUpload
+            value={image}
+            onChange={setImage}
+            disabled={loading}
+          />
+
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
+              className="w-full rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 sm:w-auto sm:py-2"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || !title.trim()}
-              className="px-5 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-200 disabled:opacity-50 flex items-center space-x-1.5 transition-all"
+              className="flex w-full items-center justify-center space-x-1.5 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white shadow-md shadow-indigo-200 transition-all hover:bg-indigo-700 disabled:opacity-50 sm:w-auto sm:py-2"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>{loading ? "Saving..." : "Save Changes"}</span>

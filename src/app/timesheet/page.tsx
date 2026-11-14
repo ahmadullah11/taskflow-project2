@@ -12,13 +12,10 @@ import {
 } from "@/lib/date-utils";
 import {
   Clock,
-  Calendar,
   CheckCircle2,
   User,
   ArrowRight,
   MessageSquareQuote,
-  Filter,
-  BarChart3,
 } from "lucide-react";
 
 export default function TimesheetPage() {
@@ -46,6 +43,7 @@ export default function TimesheetPage() {
   // Adjust selectedUserId when currentUser or role changes
   useEffect(() => {
     if (!isAdmin && currentUser) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedUserId(currentUser.id);
     } else if (isAdmin) {
       setSelectedUserId("all");
@@ -84,7 +82,7 @@ export default function TimesheetPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center space-x-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
               {isAdmin ? "Team Timesheet & Work Logs" : "My Work Logs"}
             </h1>
@@ -104,12 +102,12 @@ export default function TimesheetPage() {
 
         {/* Member Filter Dropdown for Admin */}
         {isAdmin ? (
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <span className="text-xs font-semibold text-slate-500">Filter Member:</span>
             <select
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              className="text-xs font-semibold rounded-2xl border border-slate-200 px-3.5 py-2 bg-white text-slate-800 shadow-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-base font-semibold text-slate-800 shadow-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 sm:w-auto sm:py-2 sm:text-xs"
             >
               <option value="all">👥 All Team Members</option>
               {users.map((u) => (

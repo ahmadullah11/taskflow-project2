@@ -60,19 +60,19 @@ export default function StopSessionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="relative bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-3 backdrop-blur-sm sm:p-4">
+      <div className="relative max-h-[90vh] w-[94vw] max-w-lg overflow-y-auto rounded-2xl border border-slate-100 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur-sm sm:px-6 sm:py-5">
+          <div className="flex min-w-0 items-center space-x-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-600">
               <Clock className="w-4 h-4" />
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 leading-tight">
+            <div className="min-w-0">
+              <h3 className="text-base font-bold leading-tight text-slate-900">
                 Finish Work Session
               </h3>
-              <p className="text-xs text-slate-500 font-medium">
+              <p className="truncate text-xs font-medium text-slate-500">
                 {taskCode} · {taskTitle}
               </p>
             </div>
@@ -80,14 +80,15 @@ export default function StopSessionModal({
           <button
             onClick={handleClose}
             disabled={loading}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            aria-label="Close session modal"
+            className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5 p-5 sm:p-6">
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start space-x-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -137,7 +138,7 @@ export default function StopSessionModal({
                 if (error) setError(null);
               }}
               placeholder="e.g., Implemented JWT authentication, configured access tokens and refresh tokens, and tested login APIs."
-              className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 placeholder:text-slate-400 transition-all resize-none text-slate-900"
+              className="w-full resize-none rounded-xl border border-slate-200 px-3.5 py-2.5 text-base text-slate-900 placeholder:text-slate-400 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
             <p className="text-[11px] text-slate-500">
               This summary will be added to the task&apos;s public work history log for team accountability and timesheet tracking.
@@ -163,19 +164,19 @@ export default function StopSessionModal({
           </label>
 
           {/* Actions */}
-          <div className="pt-2 flex items-center justify-end space-x-3">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
             <button
               type="button"
               onClick={handleClose}
               disabled={loading}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
+              className="w-full rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 sm:w-auto sm:py-2"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || !summary.trim()}
-              className="px-5 py-2 text-xs font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl shadow-md shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-all"
+              className="flex w-full items-center justify-center space-x-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-xs font-semibold text-white shadow-md shadow-indigo-200 transition-all hover:from-indigo-700 hover:to-violet-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-2"
             >
               {loading ? (
                 <span>Logging Session...</span>

@@ -3,6 +3,7 @@ import { getTasksCollection, getUsersCollection, isDuplicateKeyError } from "@/l
 import { getCurrentUser } from "@/lib/auth";
 import { ObjectId, Filter } from "mongodb";
 import { TaskDoc, TaskPriority, TaskStatus } from "@/lib/types";
+import { normalizeTaskImage } from "@/lib/image-utils";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -104,11 +105,26 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { title, description = "", category = "General", priority = "medium", assigneeId } = body;
+    const {
+      title,
+      description = "",
+      category = "General",
+      priority = "medium",
+      assigneeId,
+      image,
+    } = body;
 
     if (!title || !title.trim()) {
       return NextResponse.json(
         { error: "Task title is required." },
+        { status: 400 }
+      );
+    }
+
+    const normalizedImage = normalizeTaskImage(image);
+    if (!normalizedImage.valid) {
+      return NextResponse.json(
+        { error: normalizedImage.error },
         { status: 400 }
       );
     }
@@ -178,6 +194,7 @@ export async function POST(req: NextRequest) {
     const newTask: Omit<TaskDoc, "taskCode"> = {
       title: title.trim(),
       description: description.trim(),
+      image: normalizedImage.value ?? null,
       category: category.trim(),
       priority: priority as TaskPriority,
       status: "Todo" as TaskStatus,

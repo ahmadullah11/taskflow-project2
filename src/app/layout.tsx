@@ -29,9 +29,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full overflow-x-hidden antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-50/60 text-slate-900 font-sans selection:bg-indigo-500 selection:text-white">
+      <body className="flex min-h-full w-full flex-col overflow-x-hidden bg-slate-50/60 font-sans text-slate-900 selection:bg-indigo-500 selection:text-white">
         <AuthProvider>
           <AuthGuard>
             <Suspense fallback={<div className="h-16 border-b border-slate-200 bg-white" />}>
