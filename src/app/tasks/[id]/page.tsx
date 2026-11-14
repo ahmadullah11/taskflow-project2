@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthContext";
 import TaskDetailsTimer from "@/components/TaskDetailsTimer";
 import WorkHistoryList from "@/components/WorkHistoryList";
+import TaskComments from "@/components/TaskComments";
 import TaskAssigneeCard from "@/components/TaskAssigneeCard";
 import TaskEditModal from "@/components/TaskEditModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -396,6 +397,12 @@ export default function TaskDetailsPage({
       <WorkHistoryList
         sessions={sessions}
         totalDurationSeconds={task.totalDurationSeconds || 0}
+      />
+
+      {/* Comments & Discussion Section */}
+      <TaskComments
+        taskId={task._id?.toString() || task.taskCode}
+        currentUser={currentUser}
       />
 
       {isEditOpen && canEditTask && (

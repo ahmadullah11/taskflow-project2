@@ -77,6 +77,23 @@ export interface WorkSessionDoc {
   updatedAt?: Date;
 }
 
+export interface TaskCommentDoc {
+  _id?: ObjectId | string;
+  /** Stringified task `_id` the comment belongs to. */
+  taskId: string;
+  userId: string;
+  userName: string;
+  userEmail?: string;
+  userRole?: UserRole;
+  userTitle?: string;
+  userAvatar?: string;
+  content: string;
+  /** Stringified `_id` of the parent comment, or null for a top-level comment. */
+  parentId?: string | null;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
 export interface AuthUser {
   id: string;
   name: string;

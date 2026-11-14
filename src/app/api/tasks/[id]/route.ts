@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTasksCollection, getUsersCollection } from "@/lib/mongodb";
+import { getTasksCollection, getUsersCollection, getTaskCommentsCollection } from "@/lib/mongodb";
 import { getCurrentUser } from "@/lib/auth";
 import { ObjectId, Filter } from "mongodb";
 import { TaskDoc, TaskPriority, TaskStatus } from "@/lib/types";
@@ -256,6 +256,10 @@ export async function DELETE(
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
+
+    // Comments only make sense in the context of their task, so remove them.
+    const commentsCol = await getTaskCommentsCollection();
+    await commentsCol.deleteMany({ taskId: task._id!.toString() });
 
     return NextResponse.json({ message: "Task deleted successfully" });
   } catch (err) {

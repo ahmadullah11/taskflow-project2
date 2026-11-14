@@ -1,5 +1,5 @@
 import { MongoClient, Db, Collection } from "mongodb";
-import { UserDoc, TaskDoc, WorkSessionDoc } from "./types";
+import { UserDoc, TaskDoc, TaskCommentDoc, WorkSessionDoc } from "./types";
 
 const uri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/task_tracker_db";
 const options = {};
@@ -49,6 +49,11 @@ export async function initIndexes() {
     await db.collection("workSessions").createIndex({ status: 1 });
     await db.collection("workSessions").createIndex({ userId: 1, status: 1 });
 
+    // Task comments collection indexes
+    await db.collection("taskComments").createIndex({ taskId: 1, createdAt: 1 });
+    await db.collection("taskComments").createIndex({ parentId: 1 });
+    await db.collection("taskComments").createIndex({ userId: 1 });
+
     indexesInitialized = true;
   } catch (err) {
     console.error("Index initialization error:", err);
@@ -71,6 +76,10 @@ export async function getTasksCollection(): Promise<Collection<TaskDoc>> {
 
 export async function getWorkSessionsCollection(): Promise<Collection<WorkSessionDoc>> {
   return getCollection<WorkSessionDoc>("workSessions");
+}
+
+export async function getTaskCommentsCollection(): Promise<Collection<TaskCommentDoc>> {
+  return getCollection<TaskCommentDoc>("taskComments");
 }
 
 export default clientPromise;
