@@ -15,6 +15,7 @@ async function seed() {
   await db.collection('workSessions').deleteMany({});
 
   const defaultPassword = await bcrypt.hash('password123', 10);
+  const adminPassword = await bcrypt.hash('123456', 10);
 
   const ahmadId = new ObjectId();
   const sarahId = new ObjectId();
@@ -54,12 +55,12 @@ async function seed() {
     },
     {
       _id: adminId,
-      name: 'System Admin',
-      email: 'admin@company.com',
-      password: defaultPassword,
+      name: 'Admin',
+      email: 'admin@admin.com',
+      password: adminPassword,
       role: 'admin',
       title: 'Platform Administrator',
-      avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=System%20Admin',
+      avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Admin',
       createdAt: new Date(),
     },
   ];
@@ -177,8 +178,8 @@ async function seed() {
       createdById: adminId.toString(),
       createdBy: {
         _id: adminId.toString(),
-        name: 'System Admin',
-        email: 'admin@company.com',
+        name: 'Admin',
+        email: 'admin@admin.com',
       },
       activeSession: null,
       totalDurationSeconds: 0,

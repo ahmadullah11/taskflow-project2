@@ -32,7 +32,16 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     : false;
 
   useEffect(() => {
-    if (loading || isPublicRoute) return;
+    if (loading) return;
+
+    if (isPublicRoute) {
+      // An authenticated user should never sit on /login or /signup.
+      if (user) {
+        router.replace("/tasks");
+      }
+      return;
+    }
+
     if (!user) {
       router.replace("/login");
     }

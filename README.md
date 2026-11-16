@@ -112,15 +112,15 @@ A production-ready Task Tracking and Time Logging System built with **Next.js 16
 
 Custom authentication using bcrypt password hashing and HTTP-only JWT cookies (`tasktrack_token`).
 
-### Seeded Demo Accounts (Password: `password123`)
-| Name | Email | Role | Title |
-|------|-------|------|-------|
-| **Ahmad Ullah** | `ahmad@company.com` | Member | Software Engineer |
-| **Sarah Jenkins** | `sarah@company.com` | Manager | Product Manager |
-| **Alex Rivera** | `alex@company.com` | Member | Senior Frontend Developer |
-| **System Admin** | `admin@company.com` | Admin | Platform Administrator |
+### Accounts
+| Name | Email | Password | Role | Title |
+|------|-------|----------|------|-------|
+| **Admin** | `admin@admin.com` | `123456` | Admin | Platform Administrator |
+| **Ahmad Ullah** | `ahmad@company.com` | `password123` | Member | Software Engineer |
+| **Sarah Jenkins** | `sarah@company.com` | `password123` | Manager | Product Manager |
+| **Alex Rivera** | `alex@company.com` | `password123` | Member | Senior Frontend Developer |
 
-> 💡 *The app includes a 1-Click Profile Switcher in the top right user menu and the login screen for instant evaluation.*
+> The built-in administrator uses the fixed credentials `admin@admin.com` / `123456`. Additional accounts should be created by the Admin from the **Team** dashboard. Public sign-up is disabled.
 
 ---
 

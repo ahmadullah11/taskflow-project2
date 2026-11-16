@@ -8,7 +8,7 @@ interface AuthContextType {
   activeSession: WorkSessionDoc | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (data: { name: string; email: string; password?: string; role?: string; title?: string }) => Promise<{ success: boolean; error?: string }>;
+  signup: (data: { name: string; email: string; password: string; role?: string; title?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
 }
@@ -63,17 +63,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) {
         return { success: false, error: data.error || "Login failed" };
       }
-      await refreshAuth();
+      // Reflect the signed-in user immediately. The dashboard performs a fresh
+      // /api/auth/me fetch after navigation to hydrate any active timer.
+      setUser(data.user);
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || "Network error" };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Network error",
+      };
     }
   };
 
   const signup = async (formData: {
     name: string;
     email: string;
-    password?: string;
+    password: string;
     role?: string;
     title?: string;
   }) => {
@@ -84,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
-          password: formData.password || "password123",
+          password: formData.password,
           role: formData.role || "member",
           title: formData.title || "Software Engineer",
         }),
@@ -93,10 +98,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) {
         return { success: false, error: data.error || "Signup failed" };
       }
-      await refreshAuth();
+
+      // Registration intentionally does not create a session. The new user
+      // must sign in explicitly on /login.
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || "Network error" };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Network error",
+      };
     }
   };
 

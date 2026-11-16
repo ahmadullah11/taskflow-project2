@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Filter, ObjectId } from "mongodb";
 import {
+  getNotificationsCollection,
   getTaskCommentsCollection,
   getTasksCollection,
+  getUsersCollection,
 } from "@/lib/mongodb";
 import { getCurrentUser } from "@/lib/auth";
-import { AuthUser, TaskCommentDoc, TaskDoc } from "@/lib/types";
+import { AuthUser, NotificationDoc, TaskCommentDoc, TaskDoc } from "@/lib/types";
 
 const MAX_COMMENT_LENGTH = 4000;
 
@@ -35,6 +37,14 @@ function serializeComment(comment: TaskCommentDoc) {
     ...comment,
     _id: comment._id!.toString(),
   };
+}
+
+/** Collapse whitespace and trim long comment bodies for notification previews. */
+function buildPreview(content: string): string {
+  const singleLine = content.replace(/\s+/g, " ").trim();
+  return singleLine.length > 140
+    ? `${singleLine.slice(0, 137)}...`
+    : singleLine;
 }
 
 export async function GET(
@@ -141,6 +151,7 @@ export async function POST(
     const taskId = task._id!.toString();
     const rawParentId = (body as { parentId?: unknown }).parentId;
     let parentId: string | null = null;
+    let parent: TaskCommentDoc | null = null;
 
     if (rawParentId !== undefined && rawParentId !== null && rawParentId !== "") {
       if (
@@ -154,7 +165,7 @@ export async function POST(
         );
       }
 
-      const parent = await commentsCol.findOne({
+      parent = await commentsCol.findOne({
         _id: new ObjectId(rawParentId),
         taskId,
       });
@@ -187,6 +198,89 @@ export async function POST(
 
     const result = await commentsCol.insertOne(comment);
     comment._id = result.insertedId;
+
+    // Notify everyone involved in this task. A notification failure must never
+    // block the comment itself, so errors are logged and swallowed.
+    try {
+      const notificationsCol = await getNotificationsCollection();
+      const recipients = new Map<
+        string,
+        { type: "comment" | "reply"; message: string }
+      >();
+      const assigneeId = task.assigneeId || task.assignee?._id || null;
+      const commentId = comment._id.toString();
+
+      if (parent) {
+        // Reply: notify the parent comment's author…
+        if (parent.userId && parent.userId !== user.id) {
+          recipients.set(parent.userId, {
+            type: "reply",
+            message: `${user.name} replied to your comment on ${task.taskCode}`,
+          });
+        }
+        // …and the task's assignee when they aren't the replier or parent author.
+        if (
+          assigneeId &&
+          assigneeId !== user.id &&
+          !recipients.has(assigneeId)
+        ) {
+          recipients.set(assigneeId, {
+            type: "reply",
+            message: `${user.name} replied on ${task.taskCode}: ${task.title}`,
+          });
+        }
+      } else {
+        // New top-level comment: notify the assignee…
+        if (assigneeId && assigneeId !== user.id) {
+          recipients.set(assigneeId, {
+            type: "comment",
+            message: `${user.name} commented on ${task.taskCode}: ${task.title}`,
+          });
+        }
+
+        // …and every administrator, except the commenter.
+        const usersCol = await getUsersCollection();
+        const admins = await usersCol
+          .find({ role: "admin" })
+          .project({ _id: 1 })
+          .toArray();
+        for (const admin of admins) {
+          const adminId = admin._id.toString();
+          if (adminId !== user.id && !recipients.has(adminId)) {
+            recipients.set(adminId, {
+              type: "comment",
+              message: `${user.name} commented on ${task.taskCode}: ${task.title}`,
+            });
+          }
+        }
+      }
+
+      if (recipients.size > 0) {
+        const preview = buildPreview(content);
+        const notifications: NotificationDoc[] = Array.from(
+          recipients,
+          ([recipientId, meta]) => ({
+            userId: recipientId,
+            actorId: user.id,
+            actorName: user.name,
+            actorRole: user.role,
+            taskId,
+            taskCode: task.taskCode,
+            taskTitle: task.title,
+            commentId,
+            parentId,
+            type: meta.type,
+            message: meta.message,
+            preview,
+            isRead: false,
+            createdAt: now,
+          })
+        );
+        await notificationsCol.insertMany(notifications);
+      }
+    } catch (notificationErr) {
+      console.error("Create comment notifications error:", notificationErr);
+    }
 
     return NextResponse.json(
       {
@@ -273,6 +367,17 @@ export async function DELETE(
     } else {
       const result = await commentsCol.deleteOne({ _id: comment._id });
       deletedCount = result.deletedCount;
+    }
+
+    // Drop notifications that point at deleted comments (including replies of
+    // a deleted root comment).
+    try {
+      const notificationsCol = await getNotificationsCollection();
+      await notificationsCol.deleteMany({
+        $or: [{ commentId }, { parentId: commentId }],
+      });
+    } catch (notificationErr) {
+      console.error("Delete comment notifications error:", notificationErr);
     }
 
     return NextResponse.json({

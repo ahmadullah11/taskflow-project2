@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUsersCollection, getTasksCollection, getWorkSessionsCollection } from "@/lib/mongodb";
 import { hashPassword } from "@/lib/auth";
+import { ensureDefaultAdmin } from "@/lib/admin-account";
 import { ObjectId } from "mongodb";
 
 export async function POST() {
@@ -12,10 +13,16 @@ export async function POST() {
     // Check if users already seeded
     const count = await usersCol.countDocuments();
     if (count > 0) {
-      return NextResponse.json({ message: "Database already has users. Skipping seed." });
+      // Make sure the fixed administrator account exists even when the rest of
+      // the database has already been seeded.
+      await ensureDefaultAdmin();
+      return NextResponse.json({
+        message: "Database already has users. Default admin account ensured.",
+      });
     }
 
     const defaultPassword = await hashPassword("password123");
+    const adminPassword = await hashPassword("123456");
 
     const ahmadId = new ObjectId();
     const sarahId = new ObjectId();
@@ -55,12 +62,12 @@ export async function POST() {
       },
       {
         _id: adminId,
-        name: "System Admin",
-        email: "admin@company.com",
-        password: defaultPassword,
+        name: "Admin",
+        email: "admin@admin.com",
+        password: adminPassword,
         role: "admin" as const,
         title: "Platform Administrator",
-        avatar: "https://api.dicebear.com/7.x/initials/svg?seed=System%20Admin",
+        avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Admin",
         createdAt: new Date(),
       },
     ];
@@ -178,8 +185,8 @@ export async function POST() {
         createdById: adminId.toString(),
         createdBy: {
           _id: adminId.toString(),
-          name: "System Admin",
-          email: "admin@company.com",
+          name: "Admin",
+          email: "admin@admin.com",
         },
         activeSession: null,
         totalDurationSeconds: 0,

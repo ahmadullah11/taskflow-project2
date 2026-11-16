@@ -94,6 +94,29 @@ export interface TaskCommentDoc {
   updatedAt?: Date;
 }
 
+export interface NotificationDoc {
+  _id?: ObjectId | string;
+  /** Recipient of the notification. */
+  userId: string;
+  /** User whose action triggered the notification (the commenter). */
+  actorId: string;
+  actorName: string;
+  actorRole?: UserRole;
+  /** Stringified task `_id` used for navigation. */
+  taskId: string;
+  taskCode: string;
+  taskTitle?: string;
+  commentId: string;
+  /** Parent comment id for replies, otherwise null. */
+  parentId?: string | null;
+  type: "comment" | "reply";
+  message: string;
+  /** Short snippet of the comment body for the dropdown preview. */
+  preview: string;
+  isRead: boolean;
+  createdAt: Date;
+}
+
 export interface AuthUser {
   id: string;
   name: string;

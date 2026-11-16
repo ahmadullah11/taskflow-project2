@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTasksCollection, getUsersCollection, getTaskCommentsCollection } from "@/lib/mongodb";
+import {
+  getNotificationsCollection,
+  getTasksCollection,
+  getUsersCollection,
+  getTaskCommentsCollection,
+} from "@/lib/mongodb";
 import { getCurrentUser } from "@/lib/auth";
 import { ObjectId, Filter } from "mongodb";
 import { TaskDoc, TaskPriority, TaskStatus } from "@/lib/types";
@@ -260,6 +265,10 @@ export async function DELETE(
     // Comments only make sense in the context of their task, so remove them.
     const commentsCol = await getTaskCommentsCollection();
     await commentsCol.deleteMany({ taskId: task._id!.toString() });
+
+    // Notifications linking to this task would lead nowhere.
+    const notificationsCol = await getNotificationsCollection();
+    await notificationsCol.deleteMany({ taskId: task._id!.toString() });
 
     return NextResponse.json({ message: "Task deleted successfully" });
   } catch (err) {

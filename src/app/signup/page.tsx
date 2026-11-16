@@ -2,12 +2,10 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthContext";
 import { Clock, Lock, Mail, User, Briefcase, ArrowRight, AlertCircle, Shield } from "lucide-react";
 
 export default function SignupPage() {
-  const router = useRouter();
   const { signup } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -31,11 +29,21 @@ export default function SignupPage() {
 
     setLoading(true);
     setError(null);
-    const result = await signup({ name, email, password, role, title });
-    if (result.success) {
-      router.push("/tasks");
-    } else {
-      setError(result.error || "Signup failed.");
+
+    try {
+      const result = await signup({ name, email, password, role, title });
+      if (!result.success) {
+        setError(result.error || "Signup failed.");
+        return;
+      }
+
+      // Registration does not create a session. Send the user to the login
+      // page where they must sign in explicitly.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.href = "/login?registered=true";
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Signup failed.");
+    } finally {
       setLoading(false);
     }
   };

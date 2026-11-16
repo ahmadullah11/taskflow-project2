@@ -1,5 +1,11 @@
 import { MongoClient, Db, Collection } from "mongodb";
-import { UserDoc, TaskDoc, TaskCommentDoc, WorkSessionDoc } from "./types";
+import {
+  UserDoc,
+  TaskDoc,
+  TaskCommentDoc,
+  NotificationDoc,
+  WorkSessionDoc,
+} from "./types";
 
 const uri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/task_tracker_db";
 const options = {};
@@ -54,6 +60,12 @@ export async function initIndexes() {
     await db.collection("taskComments").createIndex({ parentId: 1 });
     await db.collection("taskComments").createIndex({ userId: 1 });
 
+    // Notifications collection indexes
+    await db.collection("notifications").createIndex({ userId: 1, createdAt: -1 });
+    await db.collection("notifications").createIndex({ userId: 1, isRead: 1 });
+    await db.collection("notifications").createIndex({ commentId: 1 });
+    await db.collection("notifications").createIndex({ taskId: 1 });
+
     indexesInitialized = true;
   } catch (err) {
     console.error("Index initialization error:", err);
@@ -80,6 +92,10 @@ export async function getWorkSessionsCollection(): Promise<Collection<WorkSessio
 
 export async function getTaskCommentsCollection(): Promise<Collection<TaskCommentDoc>> {
   return getCollection<TaskCommentDoc>("taskComments");
+}
+
+export async function getNotificationsCollection(): Promise<Collection<NotificationDoc>> {
+  return getCollection<NotificationDoc>("notifications");
 }
 
 export default clientPromise;

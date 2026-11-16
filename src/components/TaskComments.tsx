@@ -152,6 +152,30 @@ export default function TaskComments({
     fetchComments();
   }, [fetchComments]);
 
+  // Notification links land on /tasks/[id]#comments; make sure the discussion
+  // section is scrolled into view once the task page has rendered.
+  useEffect(() => {
+    const scrollToComments = () => {
+      document
+        .getElementById("comments")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    const scrollIfHash = () => {
+      if (window.location.hash === "#comments") scrollToComments();
+    };
+
+    const timer = window.setTimeout(scrollIfHash, loading ? 0 : 120);
+    window.addEventListener("hashchange", scrollIfHash);
+    // Fired by the notification menu when the user is already on this task.
+    window.addEventListener("nextrack:comments-navigate", scrollToComments);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("hashchange", scrollIfHash);
+      window.removeEventListener("nextrack:comments-navigate", scrollToComments);
+    };
+  }, [loading]);
+
   const handlePostComment = async (e: React.FormEvent) => {
     e.preventDefault();
     const content = draft.trim();
@@ -318,7 +342,10 @@ export default function TaskComments({
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-sm">
+    <div
+      id="comments"
+      className="scroll-mt-24 bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-sm"
+    >
       {/* Header */}
       <div className="flex flex-col gap-3 border-b border-slate-100 pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center space-x-2.5">

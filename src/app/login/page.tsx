@@ -1,18 +1,34 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthContext";
-import { Clock, Lock, Mail, ArrowRight, AlertCircle } from "lucide-react";
+import {
+  Clock,
+  Lock,
+  Mail,
+  ArrowRight,
+  AlertCircle,
+  CheckCircle2,
+} from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
-  const { login } = useAuth();
+  const searchParams = useSearchParams();
+  const { login, user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const justRegistered = searchParams.get("registered") === "true";
+
+  // Already signed in? Send the user straight to the dashboard.
+  useEffect(() => {
+    if (!authLoading && user) {
+      window.location.replace("/tasks");
+    }
+  }, [authLoading, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,11 +39,23 @@ export default function LoginPage() {
 
     setLoading(true);
     setError(null);
-    const result = await login(email, password);
-    if (result.success) {
-      router.push("/tasks");
-    } else {
-      setError(result.error || "Login failed.");
+
+    try {
+      const result = await login(email, password);
+      if (!result.success) {
+        setError(result.error || "Login failed.");
+        return;
+      }
+
+      // Force a full navigation so the fresh auth cookie is picked up and the
+      // dashboard loads immediately (important on production/Vercel).
+      router.refresh();
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.href = "/tasks";
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed.");
+    } finally {
+      // Never leave the submit button stuck on "Signing In...".
       setLoading(false);
     }
   };
@@ -50,6 +78,13 @@ export default function LoginPage() {
 
         {/* Login Form */}
         <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs">
+          {justRegistered && !error && (
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 flex items-start space-x-2">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>Account created successfully! Please sign in.</span>
+            </div>
+          )}
+
           {error && (
             <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start space-x-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -100,17 +135,25 @@ export default function LoginPage() {
 
           <div className="mt-5 pt-5 border-t border-slate-100 text-center">
             <p className="text-xs text-slate-500">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/signup"
-                className="font-semibold text-indigo-600 hover:text-indigo-700 hover:underline"
-              >
-                Create one
-              </Link>
+              Need an account? Contact your administrator to get access.
             </p>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-[85vh] flex items-center justify-center text-xs text-slate-400">
+          Loading sign in...
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

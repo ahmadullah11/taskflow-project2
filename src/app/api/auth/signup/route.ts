@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUsersCollection, isDuplicateKeyError } from "@/lib/mongodb";
-import { hashPassword, generateToken, AUTH_COOKIE_NAME } from "@/lib/auth";
+import { hashPassword } from "@/lib/auth";
 import { UserRole } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
     const validRoles: UserRole[] = ["member", "manager", "admin"];
     const safeRole: UserRole = validRoles.includes(role) ? role : "member";
     const usersCol = await getUsersCollection();
@@ -37,43 +38,32 @@ export async function POST(req: NextRequest) {
 
     const hashedPassword = await hashPassword(password);
     const result = await usersCol.insertOne({
-      name: name.trim(),
+      name: cleanName,
       email: cleanEmail,
       password: hashedPassword,
       role: safeRole,
       title: title.trim(),
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name.trim())}`,
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}`,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
-    const userObj = {
-      id: result.insertedId.toString(),
-      name: name.trim(),
-      email: cleanEmail,
-      role: safeRole,
-      title: title.trim(),
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name.trim())}`,
-    };
-
-    const token = generateToken(userObj);
-
-    const response = NextResponse.json({
-      message: "User registered successfully",
-      user: userObj,
-    });
-
-    response.cookies.set({
-      name: AUTH_COOKIE_NAME,
-      value: token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: "/",
-    });
-
-    return response;
+    // Registration only creates the account. No session cookie or token is
+    // issued, so the new user must explicitly sign in on /login afterwards.
+    return NextResponse.json(
+      {
+        message: "Account created successfully. Please sign in.",
+        user: {
+          id: result.insertedId.toString(),
+          name: cleanName,
+          email: cleanEmail,
+          role: safeRole,
+          title: title.trim(),
+          avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}`,
+        },
+      },
+      { status: 201 }
+    );
   } catch (err) {
     if (isDuplicateKeyError(err)) {
       return NextResponse.json(

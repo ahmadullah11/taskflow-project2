@@ -36,6 +36,12 @@ export function proxy(request: NextRequest) {
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const authenticated = isAuthenticated(token);
 
+  // Public registration is closed. Accounts are created by the Admin from the
+  // Team dashboard instead.
+  if (pathname === "/register") {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
   if (PROTECTED_ROUTES.some((route) => matchesRoute(pathname, route))) {
     if (!authenticated) {
       const loginUrl = new URL("/login", request.url);
@@ -59,5 +65,6 @@ export const config = {
     "/users/:path*",
     "/login",
     "/signup",
+    "/register",
   ],
 };

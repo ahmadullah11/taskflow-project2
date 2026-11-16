@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "./AuthContext";
+import NotificationBell from "./NotificationBell";
 import { formatDigitalTimer, getInitials } from "@/lib/date-utils";
 import {
   Clock,
@@ -57,6 +58,13 @@ export default function Navbar() {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [mobileMenuOpen]);
+
+  // Close the profile menu when the notification panel opens.
+  useEffect(() => {
+    const close = () => setDropdownOpen(false);
+    window.addEventListener("nextrack:close-profile", close);
+    return () => window.removeEventListener("nextrack:close-profile", close);
+  }, []);
 
   const navLinks = [
     {
@@ -158,6 +166,9 @@ export default function Navbar() {
               </Link>
             )}
 
+            {/* Notifications */}
+            <NotificationBell />
+
             {/* User Profile */}
             {loading ? (
               <div className="h-8 w-8 animate-pulse rounded-lg bg-slate-100" />
@@ -165,7 +176,13 @@ export default function Navbar() {
               <div className="relative">
                 <button
                   onClick={() => {
-                    setDropdownOpen(!dropdownOpen);
+                    const next = !dropdownOpen;
+                    setDropdownOpen(next);
+                    if (next) {
+                      window.dispatchEvent(
+                        new CustomEvent("nextrack:close-notifications")
+                      );
+                    }
                     setMobileMenuOpen(false);
                   }}
                   aria-label="Open user menu"
@@ -218,20 +235,12 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              <div className="flex items-center space-x-2">
-                <Link
-                  href="/login"
-                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900"
-                >
-                  Log In
-                </Link>
-                <Link
-                  href="/signup"
-                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
-                >
-                  Sign Up
-                </Link>
-              </div>
+              <Link
+                href="/login"
+                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-indigo-700"
+              >
+                Log In
+              </Link>
             )}
 
             {/* Mobile menu trigger */}
@@ -241,6 +250,9 @@ export default function Navbar() {
                 onClick={() => {
                   setMobileMenuOpen(true);
                   setDropdownOpen(false);
+                  window.dispatchEvent(
+                    new CustomEvent("nextrack:close-notifications")
+                  );
                 }}
                 aria-label="Open navigation menu"
                 aria-expanded={mobileMenuOpen}
