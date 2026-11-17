@@ -94,11 +94,13 @@ export interface TaskCommentDoc {
   updatedAt?: Date;
 }
 
+export type NotificationType = "comment" | "reply" | "assignment";
+
 export interface NotificationDoc {
   _id?: ObjectId | string;
   /** Recipient of the notification. */
   userId: string;
-  /** User whose action triggered the notification (the commenter). */
+  /** User whose action triggered the notification. */
   actorId: string;
   actorName: string;
   actorRole?: UserRole;
@@ -106,13 +108,14 @@ export interface NotificationDoc {
   taskId: string;
   taskCode: string;
   taskTitle?: string;
-  commentId: string;
+  /** Comment id for comment/reply notifications. */
+  commentId?: string;
   /** Parent comment id for replies, otherwise null. */
   parentId?: string | null;
-  type: "comment" | "reply";
+  type: NotificationType;
   message: string;
-  /** Short snippet of the comment body for the dropdown preview. */
-  preview: string;
+  /** Short snippet for the dropdown preview (comment body, etc.). */
+  preview?: string;
   isRead: boolean;
   createdAt: Date;
 }

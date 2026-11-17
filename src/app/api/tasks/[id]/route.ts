@@ -9,6 +9,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { ObjectId, Filter } from "mongodb";
 import { TaskDoc, TaskPriority, TaskStatus } from "@/lib/types";
 import { normalizeTaskImage } from "@/lib/image-utils";
+import { createTaskAssignmentNotification } from "@/lib/notifications";
 
 const VALID_STATUSES: TaskStatus[] = ["Todo", "In Progress", "Completed"];
 const VALID_PRIORITIES: TaskPriority[] = ["low", "medium", "high", "urgent"];
@@ -99,6 +100,9 @@ export async function PATCH(
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
+    const previousAssigneeId = task.assigneeId || task.assignee?._id || null;
+    let nextAssigneeId = previousAssigneeId;
+
     // Admins can edit any task. Regular users may edit tasks assigned to or
     // created by them (this is what enables the user self-assigned view to
     // attach/replace a reference screenshot).
@@ -180,6 +184,7 @@ export async function PATCH(
       if (assigneeId === null || assigneeId === "") {
         updates.assigneeId = null;
         updates.assignee = null;
+        nextAssigneeId = null;
       } else {
         if (
           typeof assigneeId !== "string" ||
@@ -206,11 +211,29 @@ export async function PATCH(
           title: foundUser.title,
           avatar: foundUser.avatar,
         };
+        nextAssigneeId = foundUser._id!.toString();
       }
     }
 
     await tasksCol.updateOne(query, { $set: updates });
     const updatedTask = await tasksCol.findOne(query);
+
+    // Notify the new assignee only when the task actually changed hands.
+    if (
+      updatedTask &&
+      nextAssigneeId &&
+      nextAssigneeId !== previousAssigneeId &&
+      nextAssigneeId !== user.id
+    ) {
+      await createTaskAssignmentNotification({
+        recipientId: nextAssigneeId,
+        actor: user,
+        taskId: updatedTask._id!.toString(),
+        taskCode: updatedTask.taskCode,
+        taskTitle: updatedTask.title,
+        message: `${user.name} assigned you to task: ${updatedTask.taskCode} - ${updatedTask.title}`,
+      });
+    }
 
     return NextResponse.json({
       message: "Task updated successfully",

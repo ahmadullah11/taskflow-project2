@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthContext";
 import { NotificationDoc } from "@/lib/types";
 import { formatRelativeTime, getInitials } from "@/lib/date-utils";
-import { Bell, CheckCheck, Loader2 } from "lucide-react";
+import { Bell, CheckCheck, Loader2, UserPlus } from "lucide-react";
 
 const POLL_INTERVAL_MS = 20_000;
 
@@ -148,12 +148,22 @@ export default function NotificationBell() {
       }).catch((err) => console.error("Failed to mark notification read:", err));
     }
 
-    router.push(`/tasks/${notification.taskId}#comments`);
-    // If we are already on that task page, the route may not remount, so ask
-    // the comments section to scroll itself into view.
-    window.setTimeout(() => {
-      window.dispatchEvent(new CustomEvent("nextrack:comments-navigate"));
-    }, 60);
+    // Assignment notifications open the task itself; comment notifications
+    // continue to deep-link to the discussion section.
+    const isAssignment = notification.type === "assignment";
+    router.push(
+      isAssignment
+        ? `/tasks/${notification.taskId}`
+        : `/tasks/${notification.taskId}#comments`
+    );
+
+    if (!isAssignment) {
+      // If we are already on that task page, the route may not remount, so ask
+      // the comments section to scroll itself into view.
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("nextrack:comments-navigate"));
+      }, 60);
+    }
   };
 
   if (!user) return null;
@@ -236,8 +246,8 @@ export default function NotificationBell() {
                   No notifications yet
                 </p>
                 <p className="mx-auto mt-1 max-w-[16rem] text-xs text-slate-400">
-                  You&apos;ll see updates here when teammates comment on your
-                  tasks.
+                  You&apos;ll see updates here when tasks are assigned to you or
+                  teammates comment.
                 </p>
               </div>
             ) : (
@@ -260,7 +270,11 @@ export default function NotificationBell() {
                     }`}
                     aria-hidden="true"
                   >
-                    {getInitials(notification.actorName)}
+                    {notification.type === "assignment" ? (
+                      <UserPlus className="h-4 w-4" />
+                    ) : (
+                      getInitials(notification.actorName)
+                    )}
                   </div>
 
                   <div className="min-w-0 flex-1">
@@ -273,9 +287,11 @@ export default function NotificationBell() {
                     >
                       {notification.message}
                     </p>
-                    <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                      {notification.preview}
-                    </p>
+                    {notification.preview && (
+                      <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                        {notification.preview}
+                      </p>
+                    )}
                     <p className="mt-1 text-[10px] font-medium text-slate-400">
                       {formatRelativeTime(notification.createdAt)}
                     </p>

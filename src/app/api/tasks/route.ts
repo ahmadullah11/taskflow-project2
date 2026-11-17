@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { ObjectId, Filter } from "mongodb";
 import { TaskDoc, TaskPriority, TaskStatus } from "@/lib/types";
 import { normalizeTaskImage } from "@/lib/image-utils";
+import { createTaskAssignmentNotification } from "@/lib/notifications";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -236,6 +237,18 @@ export async function POST(req: NextRequest) {
         { error: "Could not allocate a task code. Please try again." },
         { status: 500 }
       );
+    }
+
+    // Let the assignee know they were given this task.
+    if (assignee && targetAssigneeId && targetAssigneeId !== user.id) {
+      await createTaskAssignmentNotification({
+        recipientId: targetAssigneeId,
+        actor: user,
+        taskId: insertedId.toString(),
+        taskCode,
+        taskTitle: newTask.title,
+        message: `${user.name} assigned you a new task: ${taskCode} - ${newTask.title}`,
+      });
     }
 
     return NextResponse.json({
