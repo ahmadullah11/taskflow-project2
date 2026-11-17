@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTasksCollection, getUsersCollection } from "@/lib/mongodb";
 import { getCurrentUser } from "@/lib/auth";
 import { createTaskAssignmentNotification } from "@/lib/notifications";
+import { canEditTask } from "@/lib/permissions";
 import { Filter, ObjectId } from "mongodb";
 import { TaskDoc } from "@/lib/types";
 
@@ -13,14 +14,6 @@ export async function PATCH(
     const user = await getCurrentUser(req);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Business Rule: Only Admin can assign or reassign tasks
-    if (user.role !== "admin") {
-      return NextResponse.json(
-        { error: "Forbidden: Only administrators can assign or reassign tasks." },
-        { status: 403 }
-      );
     }
 
     const { id } = await props.params;
@@ -40,6 +33,14 @@ export async function PATCH(
     const task = await tasksCol.findOne(query);
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    // Only the task creator/assigner or an admin can assign or reassign tasks
+    if (!canEditTask(task, user)) {
+      return NextResponse.json(
+        { error: "Only the task assigner or an admin can edit this task" },
+        { status: 403 }
+      );
     }
 
     const previousAssigneeId = task.assigneeId || task.assignee?._id || null;

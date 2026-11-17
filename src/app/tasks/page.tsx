@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/components/AuthContext";
 import { TaskDoc, TaskStatus, UserDoc } from "@/lib/types";
 import { formatDurationSeconds, getInitials } from "@/lib/date-utils";
+import { canEditTask } from "@/lib/permissions";
 import CreateTaskModal from "@/components/CreateTaskModal";
 import TaskEditModal from "@/components/TaskEditModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -146,12 +147,6 @@ export default function TasksPage() {
         );
     }
   };
-
-  const canEditTask = (task: TaskDoc) =>
-    isAdmin ||
-    task.assigneeId === currentUser?.id ||
-    task.assignee?._id === currentUser?.id ||
-    task.createdById === currentUser?.id;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -499,30 +494,30 @@ export default function TasksPage() {
                     {/* Actions */}
                     <td className="px-4 py-3.5 align-middle">
                       <div className="flex items-center justify-end space-x-1.5">
-                        {canEditTask(task) && (
-                          <button
-                            type="button"
-                            title="Edit task"
-                            aria-label={`Edit ${task.taskCode}`}
-                            onClick={() => setEditingTask(task)}
-                            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-indigo-50 hover:text-indigo-600"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                        )}
-                        {isAdmin && (
-                          <button
-                            type="button"
-                            title="Delete task"
-                            aria-label={`Delete ${task.taskCode}`}
-                            onClick={() => {
-                              setDeleteError(null);
-                              setDeletingTask(task);
-                            }}
-                            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        {canEditTask(task, currentUser) && (
+                          <>
+                            <button
+                              type="button"
+                              title="Edit task"
+                              aria-label={`Edit ${task.taskCode}`}
+                              onClick={() => setEditingTask(task)}
+                              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-indigo-50 hover:text-indigo-600"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Delete task"
+                              aria-label={`Delete ${task.taskCode}`}
+                              onClick={() => {
+                                setDeleteError(null);
+                                setDeletingTask(task);
+                              }}
+                              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
                         )}
                         <Link
                           href={`/tasks/${task._id || task.taskCode}`}
@@ -638,30 +633,30 @@ export default function TasksPage() {
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1">
-                  {canEditTask(task) && (
-                    <button
-                      type="button"
-                      title="Edit task"
-                      aria-label={`Edit ${task.taskCode}`}
-                      onClick={() => setEditingTask(task)}
-                      className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 transition-colors hover:bg-indigo-50 hover:text-indigo-600"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      title="Delete task"
-                      aria-label={`Delete ${task.taskCode}`}
-                      onClick={() => {
-                        setDeleteError(null);
-                        setDeletingTask(task);
-                      }}
-                      className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  {canEditTask(task, currentUser) && (
+                    <>
+                      <button
+                        type="button"
+                        title="Edit task"
+                        aria-label={`Edit ${task.taskCode}`}
+                        onClick={() => setEditingTask(task)}
+                        className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 transition-colors hover:bg-indigo-50 hover:text-indigo-600"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Delete task"
+                        aria-label={`Delete ${task.taskCode}`}
+                        onClick={() => {
+                          setDeleteError(null);
+                          setDeletingTask(task);
+                        }}
+                        className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
                   )}
                   <Link
                     href={`/tasks/${task._id || task.taskCode}`}

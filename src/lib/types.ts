@@ -128,3 +128,19 @@ export interface AuthUser {
   title: string;
   avatar?: string;
 }
+
+export interface CategoryDoc {
+  _id?: ObjectId | string;
+  name: string;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+export interface CategoryItem {
+  _id: string;
+  id: string;
+  name: string;
+  createdAt: string | Date;
+  updatedAt?: string | Date;
+}
+

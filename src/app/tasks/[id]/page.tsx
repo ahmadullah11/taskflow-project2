@@ -12,6 +12,7 @@ import TaskEditModal from "@/components/TaskEditModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ImageLightbox from "@/components/ImageLightbox";
 import { TaskDoc, WorkSessionDoc, TaskStatus } from "@/lib/types";
+import { canEditTask } from "@/lib/permissions";
 import {
   ArrowLeft,
   Layers,
@@ -165,11 +166,7 @@ export default function TaskDetailsPage({
     );
   }
 
-  const canEditTask =
-    currentUser?.role === "admin" ||
-    task.assigneeId === currentUser?.id ||
-    task.assignee?._id === currentUser?.id ||
-    task.createdById === currentUser?.id;
+  const canEdit = canEditTask(task, currentUser);
 
   const getStatusBadge = (status: TaskStatus) => {
     switch (status) {
@@ -228,28 +225,28 @@ export default function TaskDetailsPage({
 
         {/* Quick Status Selector */}
         <div className="flex flex-wrap items-center gap-2">
-          {canEditTask && (
-            <button
-              type="button"
-              onClick={() => setIsEditOpen(true)}
-              className="inline-flex flex-1 items-center justify-center space-x-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 sm:flex-none sm:py-1.5"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              <span>Edit</span>
-            </button>
-          )}
-          {currentUser?.role === "admin" && (
-            <button
-              type="button"
-              onClick={() => {
-                setDeleteError(null);
-                setDeleteOpen(true);
-              }}
-              className="inline-flex flex-1 items-center justify-center space-x-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 sm:flex-none sm:py-1.5"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete</span>
-            </button>
+          {canEdit && (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsEditOpen(true)}
+                className="inline-flex flex-1 items-center justify-center space-x-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 sm:flex-none sm:py-1.5"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteError(null);
+                  setDeleteOpen(true);
+                }}
+                className="inline-flex flex-1 items-center justify-center space-x-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 sm:flex-none sm:py-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
+            </>
           )}
           <span className="hidden text-xs font-medium text-slate-400 sm:inline">
             Status:
@@ -360,6 +357,7 @@ export default function TaskDetailsPage({
           <TaskAssigneeCard
             task={task}
             currentUser={currentUser}
+            canReassign={canEdit}
             onAssigneeUpdated={handleSessionUpdated}
           />
 
@@ -405,7 +403,7 @@ export default function TaskDetailsPage({
         currentUser={currentUser}
       />
 
-      {isEditOpen && canEditTask && (
+      {isEditOpen && canEdit && (
         <TaskEditModal
           task={task}
           onClose={() => setIsEditOpen(false)}

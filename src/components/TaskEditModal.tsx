@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import { TaskDoc, TaskPriority, TaskStatus, UserDoc } from "@/lib/types";
 import { useAuth } from "@/components/AuthContext";
 import TaskImageUpload from "@/components/TaskImageUpload";
+import CategorySelectWithManager from "@/components/CategorySelectWithManager";
+import { canEditTask } from "@/lib/permissions";
 import { X, Pencil, CheckCircle2, AlertCircle, ShieldCheck } from "lucide-react";
 
 interface TaskEditModalProps {
@@ -12,28 +14,19 @@ interface TaskEditModalProps {
   onSaved: () => Promise<void> | void;
 }
 
-const CATEGORIES = [
-  "Backend Development",
-  "Frontend Development",
-  "Design System",
-  "DevOps",
-  "Quality Assurance",
-  "Product Discovery",
-  "General",
-];
-
 export default function TaskEditModal({
   task,
   onClose,
   onSaved,
 }: TaskEditModalProps) {
   const { user: currentUser } = useAuth();
-  const canReassign = currentUser?.role === "admin";
+  const canReassign = canEditTask(task, currentUser);
 
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
   const [image, setImage] = useState<string | null>(task.image || null);
   const [category, setCategory] = useState(task.category || "General");
+  const [isManagingCategory, setIsManagingCategory] = useState(false);
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [assigneeId, setAssigneeId] = useState(task.assigneeId || "");
@@ -49,10 +42,6 @@ export default function TaskEditModal({
       .then((data) => setUsers(data.users || []))
       .catch(console.error);
   }, [canReassign]);
-
-  const categoryOptions = CATEGORIES.includes(category)
-    ? CATEGORIES
-    : [category, ...CATEGORIES];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,22 +128,16 @@ export default function TaskEditModal({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700">
-                Category / Project
-              </label>
-              <select
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+            <div className={isManagingCategory ? "sm:col-span-2" : ""}>
+              <CategorySelectWithManager
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full text-base px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
-              >
-                {categoryOptions.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+                onChange={setCategory}
+                isAdmin={canReassign}
+                disabled={loading}
+                preserveUnknownValue={true}
+                onManagingChange={setIsManagingCategory}
+              />
             </div>
 
             <div className="space-y-1">

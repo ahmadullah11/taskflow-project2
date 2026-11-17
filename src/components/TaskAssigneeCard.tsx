@@ -3,24 +3,30 @@
 import React, { useState, useEffect } from "react";
 import { UserDoc, TaskDoc, AuthUser } from "@/lib/types";
 import { getInitials } from "@/lib/date-utils";
+import { canEditTask } from "@/lib/permissions";
 import { UserCheck, ChevronDown, Check, UserPlus } from "lucide-react";
 
 interface TaskAssigneeCardProps {
   task: TaskDoc;
   currentUser: AuthUser | null;
   onAssigneeUpdated: () => Promise<void>;
+  canReassign?: boolean;
 }
 
 export default function TaskAssigneeCard({
   task,
   currentUser,
   onAssigneeUpdated,
+  canReassign: canReassignProp,
 }: TaskAssigneeCardProps) {
   const [users, setUsers] = useState<UserDoc[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const canReassign = currentUser?.role === "admin";
+  const canReassign =
+    typeof canReassignProp === "boolean"
+      ? canReassignProp
+      : canEditTask(task, currentUser);
 
   useEffect(() => {
     // Only admins can reassign, and /api/users requires authentication.

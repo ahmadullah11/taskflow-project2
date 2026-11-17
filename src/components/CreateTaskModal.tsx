@@ -5,6 +5,7 @@ import { UserDoc, TaskPriority } from "@/lib/types";
 import { getInitials } from "@/lib/date-utils";
 import { useAuth } from "@/components/AuthContext";
 import TaskImageUpload from "@/components/TaskImageUpload";
+import CategorySelectWithManager from "@/components/CategorySelectWithManager";
 import { X, Plus, AlertCircle, CheckCircle2, ShieldCheck, UserCheck } from "lucide-react";
 
 interface CreateTaskModalProps {
@@ -25,6 +26,7 @@ export default function CreateTaskModal({
   const [description, setDescription] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [category, setCategory] = useState("Backend Development");
+  const [isManagingCategory, setIsManagingCategory] = useState(false);
   const [priority, setPriority] = useState<TaskPriority>("medium");
   const [assigneeId, setAssigneeId] = useState("");
   const [users, setUsers] = useState<UserDoc[]>([]);
@@ -143,23 +145,15 @@ export default function CreateTaskModal({
           </div>
 
           {/* Category & Priority */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700">
-                Category / Project
-              </label>
-              <select
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+            <div className={isManagingCategory ? "sm:col-span-2" : ""}>
+              <CategorySelectWithManager
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full text-base px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 bg-white"
-              >
-                <option value="Backend Development">Backend Development</option>
-                <option value="Frontend Development">Frontend Development</option>
-                <option value="Design System">Design System</option>
-                <option value="DevOps">DevOps</option>
-                <option value="Quality Assurance">Quality Assurance</option>
-                <option value="Product Discovery">Product Discovery</option>
-              </select>
+                onChange={setCategory}
+                isAdmin={isAdmin}
+                disabled={loading}
+                onManagingChange={setIsManagingCategory}
+              />
             </div>
 
             <div className="space-y-1">

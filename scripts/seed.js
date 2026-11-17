@@ -13,6 +13,25 @@ async function seed() {
   await db.collection('users').deleteMany({});
   await db.collection('tasks').deleteMany({});
   await db.collection('workSessions').deleteMany({});
+  await db.collection('categories').deleteMany({});
+
+  const defaultCategories = [
+    'Backend Development',
+    'Frontend Development',
+    'Design System',
+    'DevOps',
+    'Quality Assurance',
+    'Product Discovery',
+  ];
+  await db.collection('categories').insertMany(
+    defaultCategories.map((name) => ({
+      name,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }))
+  );
+  await db.collection('categories').createIndex({ name: 1 }, { unique: true });
+  console.log(`Inserted ${defaultCategories.length} categories`);
 
   const defaultPassword = await bcrypt.hash('password123', 10);
   const adminPassword = await bcrypt.hash('123456', 10);

@@ -10,6 +10,7 @@ import { ObjectId, Filter } from "mongodb";
 import { TaskDoc, TaskPriority, TaskStatus } from "@/lib/types";
 import { normalizeTaskImage } from "@/lib/image-utils";
 import { createTaskAssignmentNotification } from "@/lib/notifications";
+import { canEditTask } from "@/lib/permissions";
 
 const VALID_STATUSES: TaskStatus[] = ["Todo", "In Progress", "Completed"];
 const VALID_PRIORITIES: TaskPriority[] = ["low", "medium", "high", "urgent"];
@@ -87,7 +88,7 @@ export async function PATCH(
 
     const { id } = await props.params;
     const body = await req.json();
-    const { title, description, category, priority, status, assigneeId, image } =
+    const { title, description, category, priority, status, assigneeId, image, imageUrl } =
       body;
 
     const tasksCol = await getTasksCollection();
@@ -103,33 +104,46 @@ export async function PATCH(
     const previousAssigneeId = task.assigneeId || task.assignee?._id || null;
     let nextAssigneeId = previousAssigneeId;
 
-    // Admins can edit any task. Regular users may edit tasks assigned to or
-    // created by them (this is what enables the user self-assigned view to
-    // attach/replace a reference screenshot).
-    const isOwnTask =
-      task.assigneeId === user.id ||
-      task.assignee?._id === user.id ||
-      task.createdById === user.id;
+    const userCanEdit = canEditTask(task, user);
+    const isAssignee =
+      task.assigneeId === user.id || task.assignee?._id === user.id;
 
-    if (!isAdmin && !isOwnTask) {
+    // Task fields that only creator / assigner or admin can edit
+    const targetImage = image !== undefined ? image : imageUrl;
+    const hasDetailFieldUpdates =
+      title !== undefined ||
+      description !== undefined ||
+      category !== undefined ||
+      priority !== undefined ||
+      assigneeId !== undefined ||
+      targetImage !== undefined;
+
+    // Block non-creators/non-admins from modifying task fields
+    if (hasDetailFieldUpdates && !userCanEdit) {
       return NextResponse.json(
-        {
-          error:
-            "Forbidden: You can only edit tasks that are assigned to you.",
-        },
+        { error: "Only the task assigner or an admin can edit this task" },
         { status: 403 }
       );
     }
 
-    // Only administrators may reassign a task to somebody else.
-    if (assigneeId !== undefined && !isAdmin) {
-      return NextResponse.json(
-        { error: "Forbidden: Only administrators can reassign tasks." },
-        { status: 403 }
-      );
+    // Allow assignee to update only task status
+    if (!hasDetailFieldUpdates) {
+      if (status !== undefined) {
+        if (!userCanEdit && !isAssignee) {
+          return NextResponse.json(
+            { error: "Only the task assigner or an admin can edit this task" },
+            { status: 403 }
+          );
+        }
+      } else if (!userCanEdit && !isAssignee) {
+        return NextResponse.json(
+          { error: "Only the task assigner or an admin can edit this task" },
+          { status: 403 }
+        );
+      }
     }
 
-    const normalizedImage = normalizeTaskImage(image);
+    const normalizedImage = normalizeTaskImage(targetImage);
     if (!normalizedImage.valid) {
       return NextResponse.json(
         { error: normalizedImage.error },
@@ -271,10 +285,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    // Only administrators can delete tasks.
-    if (user.role !== "admin") {
+    // Block non-creators/non-admins from deleting the task
+    if (!canEditTask(task, user)) {
       return NextResponse.json(
-        { error: "Forbidden: Only administrators can delete tasks." },
+        { error: "Only the task assigner or an admin can edit this task" },
         { status: 403 }
       );
     }
@@ -302,3 +316,6 @@ export async function DELETE(
     );
   }
 }
+
+export const PUT = PATCH;
+

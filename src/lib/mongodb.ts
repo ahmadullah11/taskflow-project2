@@ -5,6 +5,7 @@ import {
   TaskCommentDoc,
   NotificationDoc,
   WorkSessionDoc,
+  CategoryDoc,
 } from "./types";
 
 const uri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/task_tracker_db";
@@ -66,6 +67,9 @@ export async function initIndexes() {
     await db.collection("notifications").createIndex({ commentId: 1 });
     await db.collection("notifications").createIndex({ taskId: 1 });
 
+    // Categories collection indexes
+    await db.collection("categories").createIndex({ name: 1 }, { unique: true });
+
     indexesInitialized = true;
   } catch (err) {
     console.error("Index initialization error:", err);
@@ -96,6 +100,10 @@ export async function getTaskCommentsCollection(): Promise<Collection<TaskCommen
 
 export async function getNotificationsCollection(): Promise<Collection<NotificationDoc>> {
   return getCollection<NotificationDoc>("notifications");
+}
+
+export async function getCategoriesCollection(): Promise<Collection<CategoryDoc>> {
+  return getCollection<CategoryDoc>("categories");
 }
 
 export default clientPromise;

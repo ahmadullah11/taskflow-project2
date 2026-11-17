@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getUsersCollection, getTasksCollection, getWorkSessionsCollection } from "@/lib/mongodb";
 import { hashPassword } from "@/lib/auth";
 import { ensureDefaultAdmin } from "@/lib/admin-account";
+import { ensureDefaultCategories } from "@/lib/categories";
 import { ObjectId } from "mongodb";
 
 export async function POST() {
@@ -16,8 +17,9 @@ export async function POST() {
       // Make sure the fixed administrator account exists even when the rest of
       // the database has already been seeded.
       await ensureDefaultAdmin();
+      await ensureDefaultCategories();
       return NextResponse.json({
-        message: "Database already has users. Default admin account ensured.",
+        message: "Database already has users. Default admin account and categories ensured.",
       });
     }
 
@@ -221,6 +223,8 @@ export async function POST() {
       createdAt: sessionEnd,
       updatedAt: sessionEnd,
     });
+
+    await ensureDefaultCategories();
 
     return NextResponse.json({
       message: "Seed data created successfully",
