@@ -103,3 +103,34 @@ export function formatRelativeTime(dateInput: string | Date | undefined): string
     year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric",
   }).format(date);
 }
+
+/** Formats date and time like "11/18/2026, 2:50 PM". */
+export function formatDateTime(dateInput: string | Date | undefined): string {
+  if (!dateInput) return "";
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return "";
+
+  return d.toLocaleString("en-US", {
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+/** Checks whether a date input falls on the same calendar day as targetDate (defaults to today). */
+export function isSameDay(
+  dateInput: Date | string | undefined | null,
+  targetDate = new Date()
+): boolean {
+  if (!dateInput) return false;
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return false;
+  return (
+    d.getFullYear() === targetDate.getFullYear() &&
+    d.getMonth() === targetDate.getMonth() &&
+    d.getDate() === targetDate.getDate()
+  );
+}

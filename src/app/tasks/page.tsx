@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthContext";
-import { TaskDoc, TaskStatus, UserDoc } from "@/lib/types";
+import { TaskDoc, TaskStatus, UserDoc, WorkSessionDoc } from "@/lib/types";
 import { formatDurationSeconds, getInitials } from "@/lib/date-utils";
 import { canEditTask } from "@/lib/permissions";
 import CreateTaskModal from "@/components/CreateTaskModal";
@@ -41,6 +41,7 @@ export default function TasksPage() {
     src: string;
     alt: string;
   } | null>(null);
+  const [todayTrackedSeconds, setTodayTrackedSeconds] = useState<number>(0);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -83,11 +84,99 @@ export default function TasksPage() {
     }
   }, [statusFilter, priorityFilter, searchQuery, assigneeFilter, isAdmin]);
 
+  const fetchTimeLogs = useCallback(async () => {
+    if (!currentUser) return;
+
+    if (isAdmin && assigneeFilter === "unassigned") {
+      setTodayTrackedSeconds(0);
+      return;
+    }
+
+    try {
+      const endpoint = isAdmin
+        ? assigneeFilter !== "all"
+          ? `/api/users/${assigneeFilter}/time-logs`
+          : "/api/users/all/time-logs"
+        : "/api/users/me/time-logs";
+
+      const res = await fetch(endpoint, { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        const sessions: WorkSessionDoc[] = data.sessions || [];
+
+        const now = new Date();
+        const startOfToday = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          0,
+          0,
+          0,
+          0
+        );
+        const endOfToday = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          23,
+          59,
+          59,
+          999
+        );
+
+        const isMatchingToday = (dInput?: Date | string | null) => {
+          if (!dInput) return false;
+          const d = new Date(dInput);
+          if (isNaN(d.getTime())) return false;
+          return d >= startOfToday && d <= endOfToday;
+        };
+
+        const todaySessions = sessions.filter(
+          (s) =>
+            isMatchingToday(s.createdAt) ||
+            isMatchingToday(s.endTime) ||
+            isMatchingToday(s.startTime)
+        );
+
+        const totalToday = todaySessions.reduce((acc, s) => {
+          if (typeof s.durationSeconds === "number" && s.durationSeconds > 0) {
+            return acc + s.durationSeconds;
+          }
+          if (s.startTime && s.endTime) {
+            const diff = Math.round(
+              (new Date(s.endTime).getTime() - new Date(s.startTime).getTime()) / 1000
+            );
+            if (diff > 0) return acc + diff;
+          }
+          if (s.status === "active" && s.startTime) {
+            const elapsed = Math.round(
+              (Date.now() - new Date(s.startTime).getTime()) / 1000
+            );
+            if (elapsed > 0) return acc + elapsed;
+          }
+          return acc;
+        }, 0);
+
+        setTodayTrackedSeconds(totalToday);
+      }
+    } catch (err) {
+      console.error("Error fetching time logs for today:", err);
+    }
+  }, [currentUser, isAdmin, assigneeFilter]);
+
   useEffect(() => {
     // Fetching tasks for the active filters is the intended use of this effect.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchTasks();
   }, [fetchTasks]);
+
+  useEffect(() => {
+    fetchTimeLogs();
+  }, [fetchTimeLogs]);
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all([fetchTasks(), fetchTimeLogs()]);
+  }, [fetchTasks, fetchTimeLogs]);
 
   const handleDeleteTask = async () => {
     if (!deletingTask) return;
@@ -103,7 +192,7 @@ export default function TasksPage() {
         throw new Error(data.error || "Failed to delete task");
       }
       setDeletingTask(null);
-      await fetchTasks();
+      await refreshAll();
     } catch (err) {
       setDeleteError(
         err instanceof Error ? err.message : "Failed to delete task"
@@ -120,6 +209,9 @@ export default function TasksPage() {
   const totalTrackedSeconds = tasks.reduce(
     (acc, t) => acc + (t.totalDurationSeconds || 0),
     0
+  );
+  const selectedMember = users.find(
+    (u) => (u._id?.toString() || u._id) === assigneeFilter
   );
 
   const getStatusBadge = (status: TaskStatus) => {
@@ -189,49 +281,75 @@ export default function TasksPage() {
 
       {/* KPI Stats Overview */}
       <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs min-w-0">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Total Tasks</span>
-            <CheckSquare className="w-4 h-4 text-indigo-500" />
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs min-w-0 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Total Tasks</span>
+              <CheckSquare className="w-4 h-4 text-indigo-500" />
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-slate-900">{totalTasks}</div>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-slate-900">{totalTasks}</div>
-          <span className="text-[11px] text-slate-400">
+          <span className="text-[11px] text-slate-400 mt-2 block">
             {isAdmin ? "All registered tasks" : "Your assigned tasks"}
           </span>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs min-w-0">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">In Progress</span>
-            <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs min-w-0 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">In Progress</span>
+              <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-amber-600">{inProgressCount}</div>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-amber-600">{inProgressCount}</div>
-          <span className="text-[11px] text-slate-400">
+          <span className="text-[11px] text-slate-400 mt-2 block">
             {isAdmin ? "Currently active across team" : "Your active tasks"}
           </span>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs min-w-0">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Completed</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs min-w-0 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Completed</span>
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-emerald-600">{completedCount}</div>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-emerald-600">{completedCount}</div>
-          <span className="text-[11px] text-slate-400">
+          <span className="text-[11px] text-slate-400 mt-2 block">
             {isAdmin ? "Finished team deliverables" : "Your finished deliverables"}
           </span>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs min-w-0">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Total Logged Time</span>
-            <Clock className="w-4 h-4 text-violet-500" />
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs min-w-0 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Total Logged Time</span>
+              <Clock className="w-4 h-4 text-violet-500" />
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 font-mono">
+              {formatDurationSeconds(totalTrackedSeconds)}
+            </div>
+
+            {/* Dedicated companion metric right beneath the main readout with a subtle badge/divider */}
+            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-500" />
+                <span>Today:</span>
+              </span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold font-mono bg-violet-50 text-violet-700 border border-violet-100">
+                {formatDurationSeconds(todayTrackedSeconds)}
+              </span>
+            </div>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-slate-900 font-mono">
-            {formatDurationSeconds(totalTrackedSeconds)}
-          </div>
-          <span className="text-[11px] text-slate-400">
-            {isAdmin ? "Sum of all team work" : "Your logged work hours"}
+
+          <span className="text-[11px] text-slate-400 mt-2 block">
+            {isAdmin
+              ? assigneeFilter !== "all" && assigneeFilter !== "unassigned"
+                ? `Logged work for ${selectedMember?.name || "selected member"}`
+                : assigneeFilter === "unassigned"
+                ? "Unassigned tasks work"
+                : "Sum of all team work"
+              : "Your logged work hours"}
           </span>
         </div>
       </div>
@@ -678,14 +796,14 @@ export default function TasksPage() {
       <CreateTaskModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onTaskCreated={fetchTasks}
+        onTaskCreated={refreshAll}
       />
 
       {editingTask && (
         <TaskEditModal
           task={editingTask}
           onClose={() => setEditingTask(null)}
-          onSaved={fetchTasks}
+          onSaved={refreshAll}
         />
       )}
 

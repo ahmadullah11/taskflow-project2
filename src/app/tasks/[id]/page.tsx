@@ -372,9 +372,18 @@ export default function TaskDetailsPage({
               <span className="font-bold text-slate-900">{task.category}</span>
             </div>
             <div className="flex items-center justify-between text-slate-500 font-medium">
-              <span>Created Date</span>
-              <span className="text-slate-700">
-                {new Date(task.createdAt).toLocaleDateString()}
+              <span>Created At</span>
+              <span className="text-slate-700 font-medium">
+                {task.createdAt
+                  ? new Date(task.createdAt).toLocaleString("en-US", {
+                      month: "numeric",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true,
+                    })
+                  : "—"}
               </span>
             </div>
           </div>

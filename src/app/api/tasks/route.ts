@@ -34,7 +34,12 @@ export async function GET(req: NextRequest) {
     //   account. Unassigned tasks and other members' tasks are excluded.
     if (user.role !== "admin") {
       andConditions.push({
-        $or: [{ assigneeId: user.id }, { "assignee._id": user.id }],
+        $or: [
+          { assigneeId: user.id },
+          ...(ObjectId.isValid(user.id) ? [{ assigneeId: new ObjectId(user.id) as any }] : []),
+          { "assignee._id": user.id },
+          ...(ObjectId.isValid(user.id) ? [{ "assignee._id": new ObjectId(user.id) as any }] : []),
+        ],
       });
     } else {
       // User is Admin: show all tasks! Admin can also optionally filter by assignee.
@@ -49,7 +54,12 @@ export async function GET(req: NextRequest) {
           });
         } else {
           andConditions.push({
-            $or: [{ assigneeId: assigneeId }, { "assignee._id": assigneeId }],
+            $or: [
+              { assigneeId: assigneeId },
+              ...(ObjectId.isValid(assigneeId) ? [{ assigneeId: new ObjectId(assigneeId) as any }] : []),
+              { "assignee._id": assigneeId },
+              ...(ObjectId.isValid(assigneeId) ? [{ "assignee._id": new ObjectId(assigneeId) as any }] : []),
+            ],
           });
         }
       }
